@@ -4,8 +4,17 @@ use crate::font::*;
 use crate::{MainCamera, WIDTH, HEIGHT};
 use crate::util::cursor_pos;
 
-const CARD_WIDTH: f32 = 90.;
-const CARD_HEIGHT: f32 = 140.;
+pub const CARD_SCALE: f32 = 0.4;
+const CARD_WIDTH: f32 = 270. * CARD_SCALE;
+const CARD_HEIGHT: f32 = 420. * CARD_SCALE;
+
+pub fn card_transform(x: f32, y: f32) -> Transform {
+    return Transform {
+        translation: Vec3::new(x, y, 2.),
+        scale: Vec3::new(CARD_SCALE, CARD_SCALE, 1.),
+        ..Default::default()
+    }
+}
 
 #[derive(Copy, Clone)]
 pub enum Cards {

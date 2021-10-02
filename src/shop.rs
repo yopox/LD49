@@ -23,10 +23,7 @@ pub fn init(
     commands
         .spawn_bundle(SpriteBundle {
             material: handles.dummy_card.clone(),
-            transform: Transform {
-                translation: Vec3::new(WIDTH / 2. - 100., HEIGHT / 2., 1.),
-                ..Default::default()
-            },
+            transform: card_transform(WIDTH / 2. - 200., HEIGHT / 2.),
             ..Default::default()
         })
         .insert(CardComponent { card_id: Cards::DUMMY_1 });
@@ -34,10 +31,7 @@ pub fn init(
     commands
         .spawn_bundle(SpriteBundle {
             material: handles.dummy_card2.clone(),
-            transform: Transform {
-                translation: Vec3::new(WIDTH / 2. + 100., HEIGHT / 2., 1.),
-                ..Default::default()
-            },
+            transform: card_transform(WIDTH / 2. + 100., HEIGHT / 2.),
             ..Default::default()
         })
         .insert(CardComponent { card_id: Cards::DUMMY_2 });

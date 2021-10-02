@@ -14,12 +14,12 @@ pub fn load_fonts(
     commands.insert_resource(TextStyles {
         bird_seed_small: TextStyle {
             font: bird_seed.clone(),
-            font_size: 10.0,
+            font_size: 20.0,
             color: Color::WHITE
         },
         love_bug_small: TextStyle {
             font: love_bug.clone(),
-            font_size: 9.0,
+            font_size: 18.0,
             color: Color::WHITE
         },
     });

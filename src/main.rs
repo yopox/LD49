@@ -26,16 +26,17 @@ struct MainCamera;
 
 fn main() {
     App::build()
-        .add_plugins(DefaultPlugins)
-        .add_plugin(ShopPlugin)
-        .add_plugin(CardPlugin)
         .insert_resource(WindowDescriptor {
             title: "LD49".to_string(),
             width: WIDTH,
             height: HEIGHT,
+            resizable: true,
             vsync: true,
             ..Default::default()
         })
+        .add_plugins(DefaultPlugins)
+        .add_plugin(ShopPlugin)
+        .add_plugin(CardPlugin)
         .add_state(AppState::Shop)
         .add_startup_system(setup.system())
         .add_startup_system(crate::font::load_fonts.system())
@@ -50,8 +51,8 @@ fn setup(
 ) {
     // Load assets
     commands.insert_resource(Handles {
-        dummy_card: materials.add(asset_server.load("dummy_card.png").into()),
-        dummy_card2: materials.add(asset_server.load("dummy_card2.png").into()),
+        dummy_card: materials.add(asset_server.load("araignee_boss_crop.png").into()),
+        dummy_card2: materials.add(asset_server.load("araignee_boss_crop_inv.png").into()),
     });
 
     // Spawn camera
