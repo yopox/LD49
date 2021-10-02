@@ -1,6 +1,6 @@
 use bevy::prelude::*;
 
-use crate::{AppState, HEIGHT, WIDTH};
+use crate::{AppState, HEIGHT};
 use crate::font::TextStyles;
 
 pub struct TitlePlugin;
@@ -115,15 +115,15 @@ fn button_system(
     button_materials: Res<ButtonMaterials>,
     mut app_state: ResMut<State<AppState>>,
     mut interaction_query: Query<
-        (&Interaction, &mut Handle<ColorMaterial>, &Children),
+        (&Interaction, &mut Handle<ColorMaterial>),
         (Changed<Interaction>, With<Button>),
     >,
 ) {
-    for (interaction, mut material, children) in interaction_query.iter_mut() {
+    for (interaction, mut material) in interaction_query.iter_mut() {
         match *interaction {
             Interaction::Clicked => {
                 *material = button_materials.pressed.clone();
-                app_state.set(AppState::Shop);
+                app_state.set(AppState::Shop).unwrap();
             }
             Interaction::Hovered => {
                 *material = button_materials.hovered.clone();
@@ -137,8 +137,8 @@ fn button_system(
 
 fn recycle_title(
     mut commands: Commands,
-    mut query: Query<(Entity, With<Title>)>,
+    query: Query<Entity, With<Title>>,
 ) {
-    let (e_id, _) = query.single_mut().expect("There should be one and only one title in the app lifecycle.");
+    let e_id = query.single().expect("There should be one and only one title in the app lifecycle.");
     commands.entity(e_id).despawn_recursive();
 }
