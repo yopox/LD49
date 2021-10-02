@@ -44,14 +44,14 @@ Rank | Name | ATK | HP | Effects
 
 Rank | Name | ATK | HP | Effects
 -----|------|-----|----|--------
-1 | Micro spider | 2 | 1 | (Cooperation) **PLAYED** Get +1HP for each spider on board
+1 | Micro spider | 2 | 1 | (Cooperation) **PLAYED** Gets +1HP for each spider on board
 1 | Jumping Spider | 2 | 2 | -
-2 | Funnel Web Spider | 3 | 2 | (Trap) **HIT** Lower the opponents attacks by half
+2 | Funnel Web Spider | 3 | 2 | (Trap) **HIT** Lowers the opponents attacks by half
 2 | Goliath | 3 | 3 | -
-3 | Egg | 1 | 1 | (Multiplication) **DEATH** Fill the board with rank lower rank spiders
-3 | Tarantula | 5 | 2 | (Poisonous) **HIT** Bites its oponent and kills it
-4 | Aragog | 4 | 6 | (Spawn) **TURN** Spawn a new Rank 1 at each turn
-4 | Australian black widow | 4 | 4 | (Canibalism) **TURN** Eat the lowest rank spider of the board, and add its stats
+3 | Egg | 1 | 1 | (Multiplication) **DEATH** Fills the board with rank lower rank spiders
+3 | Tarantula | 5 | 2 | (Poisonous) **HIT** Bites its opponent and kills it
+4 | Aragog | 4 | 6 | (Spawn) **TURN** Spawns a new Rank 1 Spider
+4 | Australian black widow | 4 | 4 | (Cannibalism) **TURN** Eats the lowest rank spider of the board, and gains its stats
 
 ## Family #4
 
