@@ -26,18 +26,18 @@ Rank | Name | ATK | HP | Effects
 4 | Silex fungi | 6 | 2 | (Roots) **TURN**: Gets +1HP for each allied Mush
 4 | Titanicus | 8 | 6 | (Gigantism) **KILL**: Gets +1ATK
 
-## Family #2
+## Merchants
 
 Rank | Name | ATK | HP | Effects
 -----|------|-----|----|--------
-1 | Name | 1 | 1 | –
-1 | Name | 1 | 1 | –
-2 | Name | 1 | 1 | –
-2 | Name | 1 | 1 | –
-3 | Name | 1 | 1 | –
-3 | Name | 1 | 1 | –
-4 | Name | 1 | 1 | –
-4 | Name | 1 | 1 | –
+1 | Silvanus | 1 | 3 | 
+1 | Estan | 1 | 4 | – (Sadism) **PLAYED**: Can attack allies.
+2 | Mandra | 1 | 1 | – (Exploding armour)**DEATH**: deals 1 DMG to every enemy card
+2 | Julius | 5 | 3 | – (Pillage) **KILL**: gain +1 gold
+3 | Sixante | 2 | 5 | – 
+3 | Eladra | 1 | 7 | – (Gold mine) **TURN**: You get +1 gold
+4 | Jasmar | 1 | 12 | – (Altruism) **SOLD**: distribute remaining HP to allies
+4 | Tujilus | 2 | 9 | – (Dexterity) **TURN**: Attacks twice
 
 ## Family #3
 
