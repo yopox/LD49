@@ -1,8 +1,14 @@
 # Cards
 
+Cards have base health points (**HP**) and attack (**ATK**).
+They are split into five categories: four families and other cards.
+
+Cards can have effects triggered as follow:
+
 - **TURN**: At the beginning of each turn, from next turn
 - **PLAYED**: When this card is played
 - **DEATH**: When this card dies
+- **SURVIVED**: When this card attacks and survives
 - **KILL**: When this card kills an enemy
 - **SOLD**: When this card is sold
 - (**PASSIVE**: Always apply)
@@ -59,7 +65,7 @@ Rank | Name | ATK | HP | Effects
 4 | Name | 1 | 1 | –
 4 | Name | 1 | 1 | –
 
-## Without family
+## Other cards
 
 Rank | Name | ATH | HP | Effects
 -----|------|-----|----|--------
