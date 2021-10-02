@@ -14,3 +14,7 @@ derive_more = "0.99.16"
 [[bin]]
 name = "abstract"
 path = "src/abs.rs"
+
+[[bin]]
+name = "main"
+path = "src/main.rs"
