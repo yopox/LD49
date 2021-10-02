@@ -1,11 +1,14 @@
 mod shop;
 mod abs;
+mod font;
+mod card;
 
 use bevy::prelude::*;
 use crate::shop::ShopPlugin;
+use crate::card::CardPlugin;
 
-const WIDTH: f32 = 1280.;
-const HEIGHT: f32 = 720.;
+pub const WIDTH: f32 = 1280.;
+pub const HEIGHT: f32 = 720.;
 
 #[derive(Debug, Clone, Eq, PartialEq, Hash)]
 enum AppState {
@@ -19,10 +22,16 @@ pub struct Handles {
 }
 struct MainCamera;
 
+/// Returns coordinates for the sprite to be drawn at (`x`; `y`), with a given `z` index.
+pub fn xyz(x: f32, y: f32, size: (f32, f32), z_index: f32) -> Vec3 {
+    Vec3::new(x + size.0 / 2., y + size.1 / 2., z_index)
+}
+
 fn main() {
     App::build()
         .add_plugins(DefaultPlugins)
         .add_plugin(ShopPlugin)
+        .add_plugin(CardPlugin)
         .insert_resource(WindowDescriptor {
             title: "LD49".to_string(),
             width: WIDTH,
@@ -32,6 +41,7 @@ fn main() {
         })
         .add_state(AppState::Shop)
         .add_startup_system(setup.system())
+        .add_startup_system(crate::font::load_fonts.system())
         .run();
 }
 
@@ -55,4 +65,5 @@ fn setup(
     commands
         .spawn_bundle(camera)
         .insert(MainCamera);
+    commands.spawn_bundle(UiCameraBundle::default());
 }

@@ -1,6 +1,8 @@
 use bevy::prelude::*;
-use crate::AppState;
+
+use crate::{AppState, xyz, WIDTH, HEIGHT};
 use crate::Handles;
+use crate::card::*;
 
 pub struct ShopPlugin;
 
@@ -18,12 +20,14 @@ pub fn init(
     mut commands: Commands,
     handles: Res<Handles>,
 ) {
-    commands.spawn_bundle(SpriteBundle {
-        material: handles.dummy_card.clone(),
-        transform: Transform {
-            translation: Vec3::new(0., 0., 1.),
-          ..Default::default()
-        },
-        ..Default::default()
-    });
+    commands
+        .spawn_bundle(SpriteBundle {
+            material: handles.dummy_card.clone(),
+            transform: Transform {
+                translation: Vec3::new(WIDTH / 2., HEIGHT / 2., 1.),
+                ..Default::default()
+            },
+            ..Default::default()
+        })
+        .insert(CardComponent { card_id: Cards::DUMMY });
 }
