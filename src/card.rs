@@ -1,10 +1,16 @@
 use bevy::prelude::*;
 
 use crate::font::*;
+use crate::{MainCamera, WIDTH, HEIGHT};
+use crate::util::cursor_pos;
+
+const CARD_WIDTH: f32 = 90.;
+const CARD_HEIGHT: f32 = 140.;
 
 #[derive(Copy, Clone)]
 pub enum Cards {
-    DUMMY,
+    DUMMY_1,
+    DUMMY_2,
 }
 
 pub struct CardComponent {
@@ -14,13 +20,22 @@ pub struct CardComponent {
 impl Cards {
     fn name(&self) -> &'static str {
         match self {
-            Cards::DUMMY => "Dummy",
+            Cards::DUMMY_1 => "Dummy",
+            Cards::DUMMY_2 => "Dummy 2",
+        }
+    }
+
+    fn ability(&self) -> &'static str {
+        match self {
+            Cards::DUMMY_1 => "Ability 1",
+            Cards::DUMMY_2 => "Ability 2",
         }
     }
 
     fn description(&self) -> &'static str {
         match self {
-            Cards::DUMMY => "Dummy description :-)",
+            Cards::DUMMY_1 => "Dummy description :-)",
+            Cards::DUMMY_2 => "Another dummy description :-(",
         }
     }
 }
@@ -37,6 +52,8 @@ impl Plugin for CardPlugin {
 
 struct Popup;
 
+const POPUP_X_OFFSET: f32 = 20.;
+
 fn init_popup(
     mut commands: Commands,
     text_styles: Res<TextStyles>,
@@ -46,8 +63,8 @@ fn init_popup(
             style: Style {
                 position_type: PositionType::Absolute,
                 position: Rect {
-                    bottom: Val::Px(5.0),
-                    right: Val::Px(15.0),
+                    top: Val::Px(0.0),
+                    left: Val::Px(20.0),
                     ..Default::default()
                 },
                 ..Default::default()
@@ -69,18 +86,49 @@ fn init_popup(
                 ],
                 ..Default::default()
             },
-            // visible: Visible {
-            //     is_visible: true,
-            //     ..Default::default()
-            // },
+            visible: Visible {
+                is_visible: false,
+                ..Default::default()
+            },
             ..Default::default()
         })
         .insert(Popup);
 }
 
 fn update_popup(
+    windows: Res<Windows>,
     mut queries: QuerySet<(
+        Query<&Transform, With<MainCamera>>,
         Query<(&CardComponent, &Transform)>,
-        Query<&mut TextBundle, With<Popup>>,
+        Query<(&mut Style, &mut Text, &mut Visible), With<Popup>>,
     )>,
-) {}
+) {
+    let mut hover: Option<(Cards, Transform)> = None;
+
+    // Get cursor position
+    let window = windows.get_primary().unwrap();
+    if let Some(cursor) = cursor_pos(window, queries.q0().single().unwrap()) {
+        // Get hovered card id & transform
+        for (card, transform) in queries.q1().iter() {
+            let card_pos = transform.translation;
+            if cursor.x >= card_pos.x - CARD_WIDTH / 2. && cursor.x < card_pos.x + CARD_WIDTH / 2. &&
+                cursor.y >= card_pos.y - CARD_HEIGHT / 2. && cursor.y < card_pos.y + CARD_HEIGHT / 2. {
+                hover = Some((card.card_id.clone(), transform.clone()));
+                break;
+            }
+        }
+    }
+
+    // Update popup
+    let (mut style, mut text, mut visible) = queries.q2_mut().single_mut().unwrap();
+    if let Some((card, transform)) = hover {
+        visible.is_visible = true;
+        style.position.top = Val::Px(HEIGHT - (transform.translation.y + CARD_HEIGHT / 2.));
+        style.position.left = Val::Px(transform.translation.x + CARD_WIDTH / 2. + POPUP_X_OFFSET);
+        text.sections[0].value = format!("{}\n\n", card.name().to_string());
+        text.sections[1].value = format!("{}\n\n", card.ability().to_string());
+        text.sections[2].value = format!("{}\n\n", card.description().to_string());
+    } else {
+        visible.is_visible = false;
+    }
+}

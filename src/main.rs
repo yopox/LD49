@@ -2,6 +2,7 @@ mod shop;
 mod abs;
 mod font;
 mod card;
+mod util;
 
 use bevy::prelude::*;
 use crate::shop::ShopPlugin;
@@ -19,13 +20,9 @@ enum AppState {
 
 pub struct Handles {
     pub dummy_card: Handle<ColorMaterial>,
+    pub dummy_card2: Handle<ColorMaterial>,
 }
 struct MainCamera;
-
-/// Returns coordinates for the sprite to be drawn at (`x`; `y`), with a given `z` index.
-pub fn xyz(x: f32, y: f32, size: (f32, f32), z_index: f32) -> Vec3 {
-    Vec3::new(x + size.0 / 2., y + size.1 / 2., z_index)
-}
 
 fn main() {
     App::build()
@@ -54,6 +51,7 @@ fn setup(
     // Load assets
     commands.insert_resource(Handles {
         dummy_card: materials.add(asset_server.load("dummy_card.png").into()),
+        dummy_card2: materials.add(asset_server.load("dummy_card2.png").into()),
     });
 
     // Spawn camera
