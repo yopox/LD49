@@ -16,3 +16,12 @@ pub fn cursor_pos(
     }
     return None;
 }
+
+pub fn overlap(
+    cursor: Vec4,
+    object: Vec3,
+    size: (f32, f32),
+) -> bool {
+    return cursor.x >= object.x - size.0 && cursor.x < object.x + size.0 &&
+        cursor.y >= object.y - size.1 && cursor.y < object.y + size.1;
+}

@@ -2,11 +2,11 @@ use bevy::prelude::*;
 
 use crate::font::*;
 use crate::{MainCamera, WIDTH, HEIGHT};
-use crate::util::cursor_pos;
+use crate::util::{cursor_pos, overlap};
 
 pub const CARD_SCALE: f32 = 0.4;
-const CARD_WIDTH: f32 = 270. * CARD_SCALE;
-const CARD_HEIGHT: f32 = 420. * CARD_SCALE;
+pub const CARD_WIDTH: f32 = 270. * CARD_SCALE;
+pub const CARD_HEIGHT: f32 = 420. * CARD_SCALE;
 
 pub fn card_transform(x: f32, y: f32) -> Transform {
     return Transform {
@@ -120,8 +120,7 @@ fn update_popup(
         // Get hovered card id & transform
         for (card, transform) in queries.q1().iter() {
             let card_pos = transform.translation;
-            if cursor.x >= card_pos.x - CARD_WIDTH / 2. && cursor.x < card_pos.x + CARD_WIDTH / 2. &&
-                cursor.y >= card_pos.y - CARD_HEIGHT / 2. && cursor.y < card_pos.y + CARD_HEIGHT / 2. {
+            if overlap(cursor, card_pos, (CARD_WIDTH / 2., CARD_HEIGHT / 2.)) {
                 hover = Some((card.card_id.clone(), transform.clone()));
                 break;
             }
