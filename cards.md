@@ -9,6 +9,7 @@ Cards can have effects triggered as follow:
 - **PLAYED**: When this card is played
 - **DEATH**: When this card dies
 - **SURVIVED**: When this card attacks and survives
+- **HIT**: When this card attack and is attacked
 - **KILL**: When this card kills an enemy
 - **SOLD**: When this card is sold
 - (**PASSIVE**: Always apply)
@@ -39,18 +40,18 @@ Rank | Name | ATK | HP | Effects
 4 | Jasmar | 4 | 8 | (Altruism) **SOLD**: Distribute its max HP between allies
 4 | Tujilus | 5 | 9 | (Dexterity) **SURVIVED**: Attacks another enemy once
 
-## Family #3
+## Spiders
 
 Rank | Name | ATK | HP | Effects
 -----|------|-----|----|--------
-1 | Name | 1 | 1 | –
-1 | Name | 1 | 1 | –
-2 | Name | 1 | 1 | –
-2 | Name | 1 | 1 | –
-3 | Name | 1 | 1 | –
-3 | Name | 1 | 1 | –
-4 | Name | 1 | 1 | –
-4 | Name | 1 | 1 | –
+1 | Micro spider | 2 | 1 | (Cooperation) **PLAYED** Get +1HP for each spider on board
+1 | Jumping Spider | 2 | 2 | -
+2 | Funnel Web Spider | 3 | 2 | (Trap) **HIT** Lower the opponents attacks by half
+2 | Goliath | 3 | 3 | -
+3 | Egg | 1 | 1 | (Multiplication) **DEATH** Fill the board with rank lower rank spiders
+3 | Tarantula | 5 | 2 | (Poisonous) **HIT** Bites its oponent and kills it
+4 | Aragog | 4 | 6 | (Spawn) **TURN** Spawn a new Rank 1 at each turn
+4 | Australian black widow | 4 | 4 | (Canibalism) **TURN** Eat the lowest rank spider of the board, and add its stats
 
 ## Family #4
 
