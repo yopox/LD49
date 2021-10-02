@@ -3,10 +3,12 @@ mod abs;
 mod font;
 mod card;
 mod util;
+mod title;
 
 use bevy::prelude::*;
 use crate::shop::ShopPlugin;
 use crate::card::CardPlugin;
+use crate::title::TitlePlugin;
 
 pub const WIDTH: f32 = 1280.;
 pub const HEIGHT: f32 = 720.;
@@ -30,14 +32,14 @@ fn main() {
             title: "LD49".to_string(),
             width: WIDTH,
             height: HEIGHT,
-            resizable: true,
             vsync: true,
             ..Default::default()
         })
         .add_plugins(DefaultPlugins)
         .add_plugin(ShopPlugin)
         .add_plugin(CardPlugin)
-        .add_state(AppState::Shop)
+        .add_state(AppState::Title)
+        .add_plugin(TitlePlugin)
         .add_startup_system(setup.system())
         .add_startup_system(crate::font::load_fonts.system())
         .run();
