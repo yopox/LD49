@@ -1,4 +1,5 @@
 mod shop;
+mod abs;
 
 use bevy::prelude::*;
 use crate::shop::ShopPlugin;
