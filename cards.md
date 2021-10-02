@@ -9,7 +9,7 @@ Cards can have effects triggered as follow:
 - **PLAYED**: When this card is played
 - **DEATH**: When this card dies
 - **SURVIVED**: When this card attacks and survives
-- **HIT**: When this card attack and is attacked
+- **HIT**: When this card attacks or is attacked
 - **KILL**: When this card kills an enemy
 - **SOLD**: When this card is sold
 - (**PASSIVE**: Always apply)
