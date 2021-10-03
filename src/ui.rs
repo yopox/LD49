@@ -79,7 +79,7 @@ pub mod easing {
 
 impl Plugin for AnimationPlugin {
     fn build(&self, app: &mut AppBuilder) {
-        app.add_system(update_translate_animation.system());
+        app.add_system(update_translate_animation.system().label("translate-animation:update"));
     }
 }
 
@@ -137,9 +137,9 @@ pub struct Dropped {
 impl Plugin for DragAndDropPlugin {
     fn build(&self, app: &mut AppBuilder) {
         app
-            .add_system(drag_update.system())
-            .add_system(drop_update.system())
-            .add_system(begin_drag.system())
+            .add_system(drag_update.system().label("drag:update"))
+            .add_system(drop_update.system().label("drag:end"))
+            .add_system(begin_drag.system().label("drag:begin"))
         ;
     }
 }
