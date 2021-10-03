@@ -207,7 +207,7 @@ fn drop_card(
             None => {
                 for (e, transform, mut slot) in queries.q2_mut().iter_mut() {
                     if dropped.0 == e {
-                        println!("No slots hovered. Fallback to {:?} {}", &slot.row, &slot.id);
+                        // println!("No slots hovered. Fallback to {:?} {}", &slot.row, &slot.id);
                         commands
                             .entity(dropped.0)
                             .insert(animate(&time, (transform.translation.x, transform.translation.y), (slot.x(), slot.y())));
@@ -237,7 +237,7 @@ fn drop_card(
                     ShopSlots::BOARD => destination_slot.row == ShopSlots::BOARD || destination_slot.row == ShopSlots::SHOP,
                     ShopSlots::SHOP => destination_slot.row == ShopSlots::HAND && existing_entity.is_none(),
                 };
-                println!["Move: {:?} {} -> {:?} {} : {}", &origin_slot.row, &origin_slot.id, &destination_slot.row, &destination_slot.id, legal_move];
+                // println!["Move: {:?} {} -> {:?} {} : {}", &origin_slot.row, &origin_slot.id, &destination_slot.row, &destination_slot.id, legal_move];
 
                 for (e, transform, mut slot) in queries.q2_mut().iter_mut() {
                     if dropped.0 == e {
