@@ -1,4 +1,6 @@
 use bevy::prelude::*;
+use rand::{Rng, SeedableRng};
+use rand::rngs::StdRng;
 
 use crate::card::{Card, CardPlugin, CardsID};
 use crate::fight::{FightPlugin, MyFoe};
@@ -91,6 +93,7 @@ fn setup(
 
 pub struct MySelf;
 
+#[derive(Clone)]
 pub struct PlayerData {
     id: u16,
     name: String,
@@ -101,6 +104,7 @@ pub struct PlayerData {
 }
 
 pub struct GlobalData {
+    rng: StdRng,
     // Nothing for now
 }
 
@@ -109,7 +113,9 @@ fn setup_data(
 ) {
     commands
         .spawn()
-        .insert(GlobalData {});
+        .insert(GlobalData {
+            rng: StdRng::seed_from_u64(0u64),
+        });
 
     commands.spawn().insert(
         PlayerData {

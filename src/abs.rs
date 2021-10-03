@@ -3,6 +3,9 @@ use std::fmt::{Display, Formatter};
 use derive_more::{Add, Display, From, Into, Sub};
 use rand::{Rng, thread_rng};
 
+use crate::card::{Abilities, Card, Triggers};
+use crate::PlayerData;
+
 /* Notations:
     - att: attacking player
     - def: attacked player
@@ -12,127 +15,61 @@ use rand::{Rng, thread_rng};
  */
 
 #[derive(Debug, Clone)]
-pub enum CombatEvent {
-    Attack { att_id: usize, att_card_id: u16, def_card_id: u16, def_card_hp_after: u16 },
-    Death { player_id: usize, card_id: u16 },
-    StatsChange { player_id: usize, card_id: u16, hp: i32, at: i32 },
-    ApplyEffect { effect: Effect, effect_trigger: EffectTrigger, card_id: u16, player_id: usize },
-    GoldChange { player_id: usize, change: i32 },
+pub enum CombatEvents {
+    Attack { att_id: u16, att_card_index: u8, def_card_index: u8, def_card_hp_after: u16 },
+    Death { player_id: u16, card_index: u8 },
+    StatsChange { player_id: u16, card_index: u8, hp: i32, at: i32 },
+    ApplyEffect { card_index: u8, player_id: u16 },
+    GoldChange { player_id: u16, change: i32 },
 }
 
-impl Display for CombatEvent {
+impl Display for CombatEvents {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
-            CombatEvent::GoldChange { player_id, change } => write!(f, "GoldChange to={} of={} gold", player_id, change),
-            CombatEvent::Attack { att_id, att_card_id, def_card_id, def_card_hp_after } => { write!(f, "Attack of {}.{} on {}.{} --> hp after = {}", att_id, att_card_id, 1 - att_id, def_card_id, def_card_hp_after) }
-            CombatEvent::Death { player_id, card_id } => { write!(f, "Death of {}.{}", player_id, card_id) }
-            CombatEvent::StatsChange { .. } => { write!(f, "Stats Change") }
-            CombatEvent::ApplyEffect { .. } => { write!(f, "Effect") }
+            CombatEvents::GoldChange { player_id, change } => write!(f, "GoldChange to={} of={} gold", player_id, change),
+            CombatEvents::Attack { att_id, att_card_index: att_card_id, def_card_index: def_card_id, def_card_hp_after } => { write!(f, "Attack of {}.{} on {}.{} --> hp after = {}", att_id, att_card_id, 1 - att_id, def_card_id, def_card_hp_after) }
+            CombatEvents::Death { player_id, card_index: card_id } => { write!(f, "Death of {}.{}", player_id, card_id) }
+            CombatEvents::StatsChange { .. } => { write!(f, "Stats Change") }
+            CombatEvents::ApplyEffect { .. } => { write!(f, "Effect") }
         }
     }
 }
 
-#[derive(Debug, Display, PartialEq, Eq, Copy, Clone)]
-pub enum Effect {
-    // Mushrooms
-    ToxicSpores,
-    Gigantism,
-    // Merchants
-    Sadism,
-    ExplodingArmour,
-    Pillage,
-    Dexterity,
-    // Spiders
-    Trap,
-    Multiplication,
-    Poisonous,
-
-    // None or not at combat time
-    None,
+fn get_number_of_cards(b: &PlayerData) -> u8 {
+    b.board.len() as u8
 }
 
-#[derive(Debug, Display, PartialEq, Eq, Copy, Clone)]
-pub enum EffectTrigger {
-    // At the beginning of each turn
-    TURN,
-    // When this card is played
-    PLAYED,
-    // When this card dies
-    DEATH,
-    // When this card attacks and survives
-    SURVIVED,
-    // When this card attacks or is attacked
-    HIT,
-    // When this card kills
-    KILL,
-    // When this card is sold
-    SOLD,
-    // PASSIVE,
-    NONE,
-}
-
-#[derive(Copy, Clone)]
-pub struct Card {
-    id: u16,
-    name: &'static str,
-    hp: u16,
-    at: u16,
-
-    effect: (EffectTrigger, Effect),
-}
-
-#[derive(Copy, Clone)]
-pub struct Hero {
-    pub id: u16,
-    pub name: &'static str,
-    pub effect: (EffectTrigger, Effect),
-}
-
-pub type AliveCards = Vec<Card>;
-
-#[derive(Clone)]
-pub struct HalfBoard {
-    pub id: usize,
-    pub hp: u16,
-    pub hero: Hero,
-    pub cards: AliveCards,
-}
-
-fn get_number_of_cards(b: &HalfBoard) -> usize {
-    b.cards.len()
-}
-
-fn apply_effect<T: Rng>(card_index: usize, opponent_card_index: usize, player_hb: &mut HalfBoard, opponent_hb: &mut HalfBoard, trigger: EffectTrigger, rng: &mut T) -> Vec<CombatEvent> {
-    let player_card = player_hb.cards[card_index];
-    let opponent_card = opponent_hb.cards[opponent_card_index];
-    let card_id = player_card.id;
+fn apply_effect(card_index: u8, opponent_card_index: u8, player_hb: &mut PlayerData, opponent_hb: &mut PlayerData, trigger: Triggers) -> Vec<CombatEvents> {
+    let player_card = player_hb.board[card_index as usize];
+    let opponent_card = opponent_hb.board[opponent_card_index as usize];
+    let card_id = player_card.card_id;
     let player_id = player_hb.id;
     let opponent_id = opponent_hb.id;
     let mut events = vec![
-        CombatEvent::ApplyEffect { effect: player_card.effect.1, effect_trigger: trigger, card_id, player_id }
+        CombatEvents::ApplyEffect { card_index, player_id }
     ];
 
-    match player_card.effect.1 {
-        Effect::ToxicSpores => events.push(CombatEvent::Death { player_id: opponent_hb.id, card_id: opponent_card.id }),
-        Effect::Gigantism => events.push(CombatEvent::StatsChange { player_id, card_id, hp: 0, at: 1 }),
-        Effect::Sadism => todo!("Not yet implemented"),
-        Effect::ExplodingArmour => {
-            for mut card in &mut opponent_hb.cards {
+    match player_card.card_id.ability() {
+        Abilities::ToxicSpores => events.push(CombatEvents::Death { player_id: opponent_hb.id, card_index: opponent_card_index }),
+        Abilities::Gigantism => events.push(CombatEvents::StatsChange { player_id, card_index, hp: 0, at: 1 }),
+        Abilities::Sadism => todo!("Not yet implemented"),
+        Abilities::ExplodingArmour => {
+            for mut card in &mut opponent_hb.board {
                 if card.hp > 1 {
-                    events.push(CombatEvent::StatsChange { player_id: opponent_id, hp: -1, at: 0, card_id: card.id });
+                    events.push(CombatEvents::StatsChange { player_id: opponent_id, hp: -1, at: 0, card_index });
                 } else {
-                    events.push(CombatEvent::Death { player_id: opponent_id, card_id: card.id });
+                    events.push(CombatEvents::Death { player_id: opponent_id, card_index });
                 }
                 card.hp = card.hp - 1;
             }
-            opponent_hb.cards.retain(|card| { card.hp > 0 });
+            opponent_hb.board.retain(|card| { card.hp > 0 });
         }
-        Effect::Pillage => events.push(CombatEvent::GoldChange { change: 1, player_id }),
-        Effect::Dexterity => todo!("Not yet implemented"),
-        Effect::Trap => events.push(CombatEvent::StatsChange { player_id: opponent_id, hp: 0, at: opponent_card.at as i32 / 2, card_id: opponent_card.id }),
-        Effect::Multiplication => todo!("Not yet implemented"),
-        Effect::Poisonous => events.push(CombatEvent::Death { player_id: opponent_id, card_id: opponent_card.id }),
-        Effect::None => {}
+        Abilities::Pillage => events.push(CombatEvents::GoldChange { change: 1, player_id }),
+        Abilities::Dexterity => todo!("Not yet implemented"),
+        Abilities::Trap => events.push(CombatEvents::StatsChange { player_id: opponent_id, hp: 0, at: opponent_card.at as i32 / 2, card_index: opponent_card_index }),
+        Abilities::Multiplication => todo!("Not yet implemented"),
+        Abilities::Poisonous => events.push(CombatEvents::Death { player_id: opponent_id, card_index: opponent_card_index }),
+        _ => {}
     };
 
     return events;
@@ -143,84 +80,84 @@ fn relu(i: i32) -> u16 {
     if i < 0 { 0 } else { i as u16 }
 }
 
-fn simulate_attack<T: Rng>(att_card_index: usize, att_hb: &mut HalfBoard, def_hb: &mut HalfBoard, rng: &mut T) -> Vec<CombatEvent> {
-    let def_card_index = rng.gen_range(0..get_number_of_cards(def_hb));
+fn simulate_attack<T: Rng>(att_card_index: u8, att_hb: &mut PlayerData, def_hb: &mut PlayerData, rng: &mut T) -> Vec<CombatEvents> {
+    let def_card_index = rng.gen_range(0..get_number_of_cards(def_hb)) as u8;
     let mut events = Vec::with_capacity(2);
 
-    let att_card = &att_hb.cards[att_card_index];
-    let att_card_trigger = att_card.effect.0;
-    let def_card = &def_hb.cards[def_card_index];
-    let def_card_trigger = def_card.effect.0;
+    let att_card = &att_hb.board[att_card_index as usize];
+    let att_card_trigger = att_card.card_id.trigger();
+    let def_card = &def_hb.board[def_card_index as usize];
+    let def_card_trigger = def_card.card_id.trigger();
 
     let def_post_hp = def_card.hp as i32 - att_card.at as i32;
-    events.push(CombatEvent::Attack { att_card_id: att_card.id, att_id: att_hb.id, def_card_id: def_card.id, def_card_hp_after: relu(def_post_hp) });
+    events.push(CombatEvents::Attack { att_card_index, att_id: att_hb.id, def_card_index, def_card_hp_after: relu(def_post_hp) });
 
     if def_post_hp <= 0 {
         // Dies
-        events.push(CombatEvent::Death { player_id: def_hb.id, card_id: def_card.id });
+        events.push(CombatEvents::Death { player_id: def_hb.id, card_index: def_card_index });
 
-        // Triggers KILL  or HIT on att
-        if att_card_trigger == EffectTrigger::KILL || att_card_trigger == EffectTrigger::HIT {
-            events.append(&mut apply_effect(att_card_index, def_card_index, att_hb, def_hb, att_card_trigger, rng))
+        // Triggers Kill  or Hit on att
+        if att_card_trigger == Triggers::Kill || att_card_trigger == Triggers::Hit {
+            events.append(&mut apply_effect(att_card_index, def_card_index, att_hb, def_hb, att_card_trigger))
         }
-        // Triggers DEATH or HIT on def
-        if def_card_trigger == EffectTrigger::DEATH || def_card_trigger == EffectTrigger::HIT {
-            events.append(&mut apply_effect(def_card_index, att_card_index, def_hb, att_hb, def_card_trigger, rng))
+        // Triggers Death or Hit on def
+        if def_card_trigger == Triggers::Death || def_card_trigger == Triggers::Hit {
+            events.append(&mut apply_effect(def_card_index, att_card_index, def_hb, att_hb, def_card_trigger))
         }
 
-        def_hb.cards.remove(def_card_index);
+        def_hb.board.remove(def_card_index as usize);
 
         return events;
     }
 
     // Update card hp
-    def_hb.cards[def_card_index].hp = def_post_hp as u16;
+    def_hb.board[def_card_index as usize].hp = def_post_hp as u16;
     // Update variables for use after move
-    let att_card = &att_hb.cards[att_card_index];
-    let def_card = &def_hb.cards[def_card_index];
+    let att_card = &att_hb.board[att_card_index as usize];
+    let def_card = &def_hb.board[def_card_index as usize];
 
     // Counter-attack
     let att_post_hp = att_card.hp as i32 - def_card.at as i32;
-    events.push(CombatEvent::Attack { att_id: def_hb.id, def_card_id: att_card.id, att_card_id: def_card.id, def_card_hp_after: relu(att_post_hp) });
+    events.push(CombatEvents::Attack { att_id: def_hb.id, def_card_index: att_card_index, att_card_index: def_card_index, def_card_hp_after: relu(att_post_hp) });
 
     if att_post_hp <= 0 {
         // Dies
-        events.push(CombatEvent::Death { player_id: att_hb.id, card_id: att_card.id });
+        events.push(CombatEvents::Death { player_id: att_hb.id, card_index: att_card_index });
 
-        // Triggers KILL or HIT on def
-        if def_card_trigger == EffectTrigger::KILL || def_card_trigger == EffectTrigger::HIT {
-            events.append(&mut apply_effect(def_card_index, att_card_index, def_hb, att_hb, def_card_trigger, rng))
+        // Triggers Kill or Hit on def
+        if def_card_trigger == Triggers::Kill || def_card_trigger == Triggers::Hit {
+            events.append(&mut apply_effect(def_card_index, att_card_index, def_hb, att_hb, def_card_trigger))
         }
-        // Triggers DEATH or HIT on att
-        if att_card_trigger == EffectTrigger::DEATH || att_card_trigger == EffectTrigger::HIT {
-            events.append(&mut apply_effect(att_card_index, def_card_index, att_hb, def_hb, att_card_trigger, rng))
+        // Triggers Death or Hit on att
+        if att_card_trigger == Triggers::Death || att_card_trigger == Triggers::Hit {
+            events.append(&mut apply_effect(att_card_index, def_card_index, att_hb, def_hb, att_card_trigger))
         }
 
-        att_hb.cards.remove(att_card_index);
+        att_hb.board.remove(att_card_index as usize);
     } else {
-        att_hb.cards[att_card_index].hp = att_post_hp as u16;
+        att_hb.board[att_card_index as usize].hp = att_post_hp as u16;
 
-        // Triggers SURVIVED or HIT on att
-        if att_card_trigger == EffectTrigger::SURVIVED || att_card_trigger == EffectTrigger::HIT {
-            events.append(&mut apply_effect(att_card_index, def_card_index, att_hb, def_hb, att_card_trigger, rng))
+        // Triggers Survived or Hit on att
+        if att_card_trigger == Triggers::Survived || att_card_trigger == Triggers::Hit {
+            events.append(&mut apply_effect(att_card_index, def_card_index, att_hb, def_hb, att_card_trigger))
         }
-        // Triggers HIT on def
-        if def_card_trigger == EffectTrigger::HIT {
-            events.append(&mut apply_effect(def_card_index, att_card_index, def_hb, att_hb, def_card_trigger, rng))
+        // Triggers Hit on def
+        if def_card_trigger == Triggers::Hit {
+            events.append(&mut apply_effect(def_card_index, att_card_index, def_hb, att_hb, def_card_trigger));
         }
     }
 
     return events;
 }
 
-fn simulate_combat<T: Rng>(mut hb1: HalfBoard, mut hb2: HalfBoard, rng: &mut T) -> Vec<CombatEvent> {
+pub(crate) fn simulate_combat<T: Rng>(mut hb1: PlayerData, mut hb2: PlayerData, rng: &mut T) -> Vec<CombatEvents> {
     let mut events = Vec::new();
 
     let mut to_play = rng.gen::<bool>();
-    let mut next_cards_to_play: [usize; 2] = [0, 0];
+    let mut next_cards_to_play: [u8; 2] = [0, 0];
 
     // While each player has something to play
-    while !hb1.cards.is_empty() && !hb2.cards.is_empty() {
+    while !hb1.board.is_empty() && !hb2.board.is_empty() {
         let (player_hb, oponent_hb) = if to_play { (&mut hb1, &mut hb2) } else { (&mut hb2, &mut hb1) };
 
         events.extend(simulate_attack(next_cards_to_play[to_play as usize], player_hb, oponent_hb, rng));
@@ -231,49 +168,4 @@ fn simulate_combat<T: Rng>(mut hb1: HalfBoard, mut hb2: HalfBoard, rng: &mut T) 
         to_play = !to_play;
     }
     return events;
-}
-
-fn main() {
-    let hb1 = HalfBoard {
-        id: 0,
-        hero: Hero {
-            id: 10,
-            effect: (EffectTrigger::NONE, Effect::None),
-            name: "Toto",
-        },
-        hp: 100,
-        cards: vec![
-            Card {
-                id: 101,
-                hp: 10,
-                at: 10,
-                name: "Foort",
-                effect: (EffectTrigger::NONE, Effect::None),
-            }
-        ],
-    };
-    let hb2 = HalfBoard {
-        id: 1,
-        hero: Hero {
-            id: 11,
-            effect: (EffectTrigger::NONE, Effect::None),
-            name: "Toto",
-        },
-        hp: 100,
-        cards: vec![
-            Card {
-                id: 100,
-                hp: 1,
-                at: 1,
-                name: "Nuuul",
-                effect: (EffectTrigger::NONE, Effect::None),
-            }
-        ],
-    };
-
-    let mut rng = thread_rng();
-
-    simulate_combat(hb1, hb2, &mut rng).iter().for_each(|e| {
-        println!("{}", e);
-    });
 }

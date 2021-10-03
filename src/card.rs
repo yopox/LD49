@@ -2,8 +2,9 @@ use bevy::ecs::system::EntityCommands;
 use bevy::math::Vec4Swizzles;
 use bevy::prelude::*;
 
+use derive_more::Display;
+
 use crate::{Handles, HEIGHT, MainCamera, WIDTH};
-use crate::abs::EffectTrigger;
 use crate::font::*;
 use crate::util::{cursor_pos, overlap};
 
@@ -26,6 +27,48 @@ pub struct Card {
     pub at: u16,
 }
 
+#[derive(Debug, Display, PartialEq, Eq, Copy, Clone)]
+pub enum Abilities {
+    // Mushrooms
+    ToxicSpores,
+    Gigantism,
+    // Merchants
+    Sadism,
+    ExplodingArmour,
+    Pillage,
+    Dexterity,
+    // Spiders
+    Trap,
+    Multiplication,
+    Poisonous,
+    Cannibalism,
+    // Robots
+    Download,
+
+    // None or not at combat time
+    None,
+}
+
+#[derive(Debug, Display, PartialEq, Eq, Copy, Clone)]
+pub enum Triggers {
+    // At the beginning of each turn
+    Turn,
+    // When this card is played
+    Played,
+    // When this card dies
+    Death,
+    // When this card attacks and survives
+    Survived,
+    // When this card attacks or is attacked
+    Hit,
+    // When this card kills
+    Kill,
+    // When this card is sold
+    Sold,
+    // PASSIVE,
+    None,
+}
+
 impl CardsID {
     pub fn name(&self) -> &'static str {
         match self {
@@ -36,12 +79,12 @@ impl CardsID {
         }
     }
 
-    pub fn ability(&self) -> &'static str {
+    pub fn ability(&self) -> Abilities {
         match self {
-            CardsID::MUSH_8 => "Gigantism",
-            CardsID::MERCH_8 => "Dexterity",
-            CardsID::SPID_8 => "Cannibalism",
-            CardsID::ROB_8 => "Download",
+            CardsID::MUSH_8 => Abilities::Gigantism,
+            CardsID::MERCH_8 => Abilities::Dexterity,
+            CardsID::SPID_8 => Abilities::Cannibalism,
+            CardsID::ROB_8 => Abilities::Download,
         }
     }
 
@@ -54,12 +97,12 @@ impl CardsID {
         }
     }
 
-    pub fn trigger(&self) -> EffectTrigger {
+    pub fn trigger(&self) -> Triggers {
         match self {
-            CardsID::MUSH_8 => EffectTrigger::KILL,
-            CardsID::MERCH_8 => EffectTrigger::SURVIVED,
-            CardsID::SPID_8 => EffectTrigger::TURN,
-            CardsID::ROB_8 => EffectTrigger::TURN,
+            CardsID::MUSH_8 => Triggers::Kill,
+            CardsID::MERCH_8 => Triggers::Survived,
+            CardsID::SPID_8 => Triggers::Turn,
+            CardsID::ROB_8 => Triggers::Turn,
         }
     }
 
