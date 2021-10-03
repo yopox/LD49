@@ -1,6 +1,7 @@
 use bevy::prelude::*;
 
 use crate::card::{Card, CardPlugin, CardsID};
+use crate::fight::{FightPlugin, MyFoe};
 use crate::shop::ShopPlugin;
 use crate::title::TitlePlugin;
 use crate::ui::{AnimationPlugin, DragAndDropPlugin};
@@ -12,6 +13,7 @@ mod card;
 mod util;
 mod title;
 mod ui;
+mod fight;
 
 pub const WIDTH: f32 = 1280.;
 pub const HEIGHT: f32 = 720.;
@@ -50,6 +52,7 @@ fn main() {
         .add_state(AppState::Shop)
         .add_plugin(AnimationPlugin)
         .add_plugin(DragAndDropPlugin)
+        .add_plugin(FightPlugin)
         .add_plugin(TitlePlugin)
         .add_startup_system(setup.system())
         .add_startup_system(crate::font::load_fonts.system())
@@ -131,5 +134,5 @@ fn setup_data(
                 Card::from(CardsID::MERCH_8),
             ],
             gold: 10,
-        });
+        }).insert(MyFoe);
 }
