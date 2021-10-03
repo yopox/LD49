@@ -4,7 +4,7 @@ use bevy::prelude::*;
 use crate::{AppState, HEIGHT, MySelf, PlayerData, WIDTH};
 use crate::card::*;
 use crate::Handles;
-use crate::ui::{animate, Draggable, Dragged, DROP_BORDER, Dropped, easing, TranslationAnimation};
+use crate::ui::{animate, animate_switch, animate_fast, Draggable, Dragged, DROP_BORDER, Dropped, easing, TranslationAnimation};
 use crate::util::{card_transform, overlap, Slot};
 
 pub struct ShopPlugin;
@@ -246,7 +246,7 @@ fn drop_card(
                             slot.id = destination_slot.id;
                             commands
                                 .entity(e)
-                                .insert(animate(&time, (transform.translation.x, transform.translation.y), (destination_slot.x(), destination_slot.y())));
+                                .insert(animate_fast(&time, (transform.translation.x, transform.translation.y), (destination_slot.x(), destination_slot.y())));
                         } else {
                             commands
                                 .entity(e)
@@ -263,7 +263,7 @@ fn drop_card(
                                 slot.id = origin_slot.id;
                                 commands
                                     .entity(e)
-                                    .insert(animate(&time, (transform.translation.x, transform.translation.y), (origin_pos.0, origin_pos.1)));
+                                    .insert(animate_switch(&time, (transform.translation.x, transform.translation.y), (origin_pos.0, origin_pos.1)));
                             }
                         }
                     }

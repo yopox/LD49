@@ -208,12 +208,24 @@ fn begin_drag(
     }
 }
 
-pub fn animate(time: &Res<Time>, from: (f32, f32), to: (f32, f32)) -> TranslationAnimation {
+fn gen_animation(time: &Res<Time>, duration: f64, from: (f32, f32), to: (f32, f32)) -> TranslationAnimation {
     TranslationAnimation::from_start_end(
         time.seconds_since_startup(),
-        1.3,
+        duration,
         vec3(from.0, from.1, 0.),
         vec3(to.0, to.1, 0.),
         easing::Functions::CubicOut,
     )
+}
+
+pub fn animate(time: &Res<Time>, from: (f32, f32), to: (f32, f32)) -> TranslationAnimation {
+    gen_animation(time, 1.3, from, to)
+}
+
+pub fn animate_switch(time: &Res<Time>, from: (f32, f32), to: (f32, f32)) -> TranslationAnimation {
+    gen_animation(time, 1., from, to)
+}
+
+pub fn animate_fast(time: &Res<Time>, from: (f32, f32), to: (f32, f32)) -> TranslationAnimation {
+    gen_animation(time, 0.5, from, to)
 }
