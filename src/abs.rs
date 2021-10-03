@@ -19,7 +19,7 @@ pub enum CombatEvents {
     Attack { att_id: u16, att_card_index: u8, def_card_index: u8, change_def_hp: i32 },
     Death { player_id: u16, card_index: u8 },
     StatsChange { player_id: u16, card_index: u8, hp: i32, at: i32 },
-    ApplyEffect { card_index: u8, player_id: u16 },
+    ApplyAbility { card_index: u8, player_id: u16, ability: Abilities, card_id: u32 },
     GoldChange { player_id: u16, change: i32 },
 }
 
@@ -30,7 +30,7 @@ impl Display for CombatEvents {
             CombatEvents::Attack { att_id, att_card_index: att_card_id, def_card_index: def_card_id, change_def_hp } => { write!(f, "Attack of {}.{} on {}.{} --> hp after = {}", att_id, att_card_id, 1 - att_id, def_card_id, change_def_hp) }
             CombatEvents::Death { player_id, card_index: card_id } => { write!(f, "Death of {}.{}", player_id, card_id) }
             CombatEvents::StatsChange { .. } => { write!(f, "Stats Change") }
-            CombatEvents::ApplyEffect { .. } => { write!(f, "Effect") }
+            CombatEvents::ApplyAbility { .. } => { write!(f, "Effect") }
         }
     }
 }
@@ -42,14 +42,14 @@ fn get_number_of_cards(b: &PlayerData) -> u8 {
 fn apply_effect(card_index: u8, opponent_card_index: u8, player_hb: &mut PlayerData, opponent_hb: &mut PlayerData, trigger: Triggers) -> Vec<CombatEvents> {
     let player_card = player_hb.board[card_index as usize];
     let opponent_card = opponent_hb.board[opponent_card_index as usize];
-    let card_id = player_card.card_id;
     let player_id = player_hb.id;
     let opponent_id = opponent_hb.id;
+    let ability = player_card.card_type.ability();
     let mut events = vec![
-        CombatEvents::ApplyEffect { card_index, player_id }
+        CombatEvents::ApplyAbility { card_index, player_id, ability, card_id: player_card.id }
     ];
 
-    match player_card.card_id.ability() {
+    match ability {
         Abilities::ToxicSpores => events.push(CombatEvents::Death { player_id: opponent_hb.id, card_index: opponent_card_index }),
         Abilities::Gigantism => events.push(CombatEvents::StatsChange { player_id, card_index, hp: 0, at: 1 }),
         Abilities::Sadism => todo!("Not yet implemented"),
@@ -88,9 +88,9 @@ fn simulate_attack<T: Rng>(att_card_index: u8, att_hb: &mut PlayerData, def_hb: 
     let mut events = Vec::with_capacity(2);
 
     let att_card = &att_hb.board[att_card_index as usize];
-    let att_card_trigger = att_card.card_id.trigger();
+    let att_card_trigger = att_card.card_type.trigger();
     let def_card = &def_hb.board[def_card_index as usize];
-    let def_card_trigger = def_card.card_id.trigger();
+    let def_card_trigger = def_card.card_type.trigger();
 
     let def_post_hp = def_card.hp as i32 - att_card.at as i32;
     events.push(CombatEvents::Attack { att_card_index, att_id: att_hb.id, def_card_index, change_def_hp: - (min2(def_card.hp, att_card.at) as i32) });

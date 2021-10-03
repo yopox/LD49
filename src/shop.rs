@@ -97,7 +97,7 @@ impl Plugin for ShopPlugin {
 
 fn init(
     mut commands: Commands,
-    global_data: Res<GlobalData>,
+    mut global_data: ResMut<GlobalData>,
     handles: Res<Handles>,
     text_styles: Res<TextStyles>,
     query: Query<&PlayerData, With<MySelf>>,
@@ -122,13 +122,15 @@ fn init(
                  &mut commands, &handles);
     }
 
-    add_card(Card::from(CardsID::MERCH_8),
+    add_card(Card::new(CardTypes::MERCH_8, global_data.next_card_id),
              ShopSlot { row: ShopSlots::SHOP, id: 0 },
              &mut commands, &handles);
+    global_data.next_card_id += 1;
 
-    add_card(Card::from(CardsID::MUSH_8),
+    add_card(Card::new(CardTypes::MUSH_8, global_data.next_card_id),
              ShopSlot { row: ShopSlots::SHOP, id: 1 },
              &mut commands, &handles);
+    global_data.next_card_id += 1;
 
     // Slots
     for i in 0..=6 {
@@ -225,7 +227,7 @@ fn init(
 fn add_card(card: Card, slot: ShopSlot, commands: &mut Commands, handles: &Res<Handles>) {
     commands
         .spawn_bundle(SpriteBundle {
-            material: card.card_id.handle(&handles),
+            material: card.card_type.handle(&handles),
             transform: card_transform(slot.x(), slot.y()),
             ..Default::default()
         })

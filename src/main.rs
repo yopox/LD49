@@ -2,7 +2,7 @@ use bevy::prelude::*;
 use rand::{Rng, SeedableRng};
 use rand::rngs::StdRng;
 
-use crate::card::{Card, CardPlugin, CardsID};
+use crate::card::{Card, CardPlugin, CardsTypes};
 use crate::fight::{FightPlugin, MyFoe};
 use crate::shop::ShopPlugin;
 use crate::title::TitlePlugin;
@@ -100,6 +100,7 @@ pub struct PlayerData {
     hand: Vec<Card>,
     board: Vec<Card>,
     coins: u16,
+    extra_coins: u16, // For gold gained in fight
     hp: u16,
     shop_level: u16,
     // hero,
@@ -113,6 +114,7 @@ impl Default for PlayerData {
             hand: vec![],
             board: vec![],
             coins: 3,
+            extra_coins: 0,
             hp: 25,
             shop_level: 1,
         }
@@ -122,27 +124,22 @@ impl Default for PlayerData {
 pub struct GlobalData {
     rng: StdRng,
     turn: u16,
-    // Nothing for now
+    next_card_id: u32,
 }
 
 fn setup_data(
     mut commands: Commands,
 ) {
-    commands.insert_resource(GlobalData {
-        rng: StdRng::seed_from_u64(0u64),
-        turn: 0,
-    });
-
     commands.spawn().insert(
         PlayerData {
             id: 0,
             name: "H".to_string(),
             hand: vec![
-                Card::from(CardsID::SPID_8),
+                Card::new(CardTypes::SPID_8, 0),
             ],
             board: vec![
-                Card::from(CardsID::ROB_8),
-                Card::from(CardsID::MUSH_8),
+                Card::new(CardTypes::ROB_8, 1),
+                Card::new(CardTypes::MUSH_8, 2),
             ],
             ..Default::default()
         }).insert(MySelf);
@@ -151,9 +148,15 @@ fn setup_data(
             id: 1,
             name: "L".to_string(),
             board: vec![
-                Card::from(CardsID::SPID_8),
-                Card::from(CardsID::MERCH_8),
+                Card::new(CardTypes::SPID_8, 3),
+                Card::new(CardTypes::MERCH_8, 4),
             ],
             ..Default::default()
         }).insert(MyFoe);
+
+    commands.insert_resource(GlobalData {
+        rng: StdRng::seed_from_u64(0u64),
+        turn: 0,
+        next_card_id: 5, // WARNING: the number of cards created before in this function
+    });
 }

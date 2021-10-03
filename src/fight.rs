@@ -5,7 +5,7 @@ use derive_more::Display;
 
 use crate::{AppState, GlobalData, Handles, HEIGHT, MySelf, PlayerData};
 use crate::abs::{CombatEvents, simulate_combat};
-use crate::card::{Card, CARD_HEIGHT};
+use crate::card::{Abilities, Card, CARD_HEIGHT};
 use crate::ui::{easing, TranslationAnimation};
 use crate::util::card_transform;
 
@@ -98,7 +98,7 @@ pub struct FightEventsStack {
 fn add_card(card: Card, slot: FightSlot, commands: &mut Commands, handles: &Res<Handles>) {
     commands
         .spawn_bundle(SpriteBundle {
-            material: card.card_id.handle(&handles),
+            material: card.card_type.handle(&handles),
             transform: card_transform(slot.x(), slot.y()),
             ..Default::default()
         })
@@ -112,17 +112,17 @@ fn setup_fight(
     handles: Res<Handles>,
     time: Res<Time>,
     mut global_data: ResMut<GlobalData>,
-    mut queries: QuerySet<(
-        Query<(Entity, &mut PlayerData), With<MySelf>>,
-        Query<(Entity, &mut PlayerData), With<MyFoe>>,
+    queries: QuerySet<(
+        Query<(Entity, &PlayerData), With<MySelf>>,
+        Query<(Entity, &PlayerData), With<MyFoe>>,
     )>,
 ) {
-    let (e_myself, mut myself) = queries.q0_mut().single_mut().expect("There should be only one player tagged MySelf");
-    let myself_cloned = myself.clone();
+    let (e_myself, myself) = queries.q0().single().expect("There should be only one player tagged MySelf");
+    let mut myself_cloned = myself.clone();
     let myself_cloned_again = myself.clone();
 
-    let (e_my_foe, mut my_foe) = queries.q1_mut().single_mut().expect("There should be only one player tagged MyFoe");
-    let my_foe_cloned = my_foe.clone();
+    let (e_my_foe, my_foe) = queries.q1().single().expect("There should be only one player tagged MyFoe");
+    let mut my_foe_cloned = my_foe.clone();
     let my_foe_cloned_again = my_foe.clone();
 
     let my_id = myself_cloned.id;
@@ -169,12 +169,31 @@ fn setup_fight(
                 let slot = FightSlot { who: to_base_height(player), index: card_index };
                 stack.push(FightEvents::StatsChange(StatsChange { slot, at, hp }));
             }
-            CombatEvents::ApplyEffect { card_index, player_id } => {
+            CombatEvents::ApplyAbility { card_index, player_id , ability, card_id } => {
                 let player = if player_id == my_id { FightPlayers::MySelf } else { FightPlayers::MyFoe };
                 let slot = FightSlot { who: to_base_height(player), index: card_index };
                 stack.push(FightEvents::ApplyEffect(ApplyEffect(slot)));
+
+                match ability {
+                    Abilities::Gigantism => {
+                        if player_id == my_id {
+                            for mut card in myself_cloned.board.iter_mut() {
+                                if card.id == card_id {
+                                    card.at += 1;
+                                }
+                            }
+                        }
+                    }
+                    _ => {}
+                }
             }
-            CombatEvents::GoldChange { .. } => {}
+            CombatEvents::GoldChange { player_id, change } => {
+                if player_id == my_id {
+                    myself_cloned.extra_coins = (myself_cloned.extra_coins as i32 + change) as u16;
+                } else {
+                    my_foe_cloned.extra_coins = (my_foe_cloned.extra_coins as i32 + change) as u16;
+                }
+            }
         }
     }
 
@@ -182,10 +201,10 @@ fn setup_fight(
 
     commands.entity(e_myself)
         .remove::<MySelf>()
-        .insert(FightBackup { who: FightPlayers::MySelf });
+        .insert(FightBackup {who: FightPlayers::MySelf});
     commands.entity(e_my_foe)
         .remove::<MyFoe>()
-        .insert(FightBackup { who: FightPlayers::MyFoe });
+        .insert(FightBackup {who: FightPlayers::MyFoe});
     commands.spawn()
         .insert(myself_cloned)
         .insert(MySelf);

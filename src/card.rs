@@ -13,7 +13,7 @@ pub const CARD_WIDTH: f32 = 270. * CARD_SCALE;
 pub const CARD_HEIGHT: f32 = 420. * CARD_SCALE;
 
 #[derive(Copy, Clone)]
-pub enum CardsID {
+pub enum CardTypes {
     MUSH_8,
     MERCH_8,
     SPID_8,
@@ -22,7 +22,8 @@ pub enum CardsID {
 
 #[derive(Copy, Clone)]
 pub struct Card {
-    pub card_id: CardsID,
+    pub card_type: CardTypes,
+    pub id: u32,
     pub hp: u16,
     pub at: u16,
 }
@@ -69,60 +70,60 @@ pub enum Triggers {
     None,
 }
 
-impl CardsID {
+impl CardTypes {
     pub fn name(&self) -> &'static str {
         match self {
-            CardsID::MUSH_8 => "Titanicus",
-            CardsID::MERCH_8 => "Tujilus",
-            CardsID::SPID_8 => "Australian black widow",
-            CardsID::ROB_8 => "SkyBot",
+            CardTypes::MUSH_8 => "Titanicus",
+            CardTypes::MERCH_8 => "Tujilus",
+            CardTypes::SPID_8 => "Australian black widow",
+            CardTypes::ROB_8 => "SkyBot",
         }
     }
 
     pub fn ability(&self) -> Abilities {
         match self {
-            CardsID::MUSH_8 => Abilities::Gigantism,
-            CardsID::MERCH_8 => Abilities::Dexterity,
-            CardsID::SPID_8 => Abilities::Cannibalism,
-            CardsID::ROB_8 => Abilities::Download,
+            CardTypes::MUSH_8 => Abilities::Gigantism,
+            CardTypes::MERCH_8 => Abilities::Dexterity,
+            CardTypes::SPID_8 => Abilities::Cannibalism,
+            CardTypes::ROB_8 => Abilities::Download,
         }
     }
 
     pub fn description(&self) -> &'static str {
         match self {
-            CardsID::MUSH_8 => "Gets +1 ATK.",
-            CardsID::MERCH_8 => "Attacks another enemy once.",
-            CardsID::SPID_8 => "Eats the lowest rank spider\nof the board, and gains\nits stats.",
-            CardsID::ROB_8 => "Steals +1 HP and +1 ATK\nfrom each allied robot.",
+            CardTypes::MUSH_8 => "Gets +1 ATK.",
+            CardTypes::MERCH_8 => "Attacks another enemy once.",
+            CardTypes::SPID_8 => "Eats the lowest rank spider\nof the board, and gains\nits stats.",
+            CardTypes::ROB_8 => "Steals +1 HP and +1 ATK\nfrom each allied robot.",
         }
     }
 
     pub fn trigger(&self) -> Triggers {
         match self {
-            CardsID::MUSH_8 => Triggers::Kill,
-            CardsID::MERCH_8 => Triggers::Survived,
-            CardsID::SPID_8 => Triggers::Turn,
-            CardsID::ROB_8 => Triggers::Turn,
+            CardTypes::MUSH_8 => Triggers::Kill,
+            CardTypes::MERCH_8 => Triggers::Survived,
+            CardTypes::SPID_8 => Triggers::Turn,
+            CardTypes::ROB_8 => Triggers::Turn,
         }
     }
 
     pub fn handle(&self, handles: &Res<Handles>) -> Handle<ColorMaterial> {
         match self {
-            CardsID::MUSH_8 => handles.mush_8.clone(),
-            CardsID::MERCH_8 => handles.merch_8.clone(),
-            CardsID::SPID_8 => handles.spid_8.clone(),
-            CardsID::ROB_8 => handles.rob_8.clone(),
+            CardTypes::MUSH_8 => handles.mush_8.clone(),
+            CardTypes::MERCH_8 => handles.merch_8.clone(),
+            CardTypes::SPID_8 => handles.spid_8.clone(),
+            CardTypes::ROB_8 => handles.rob_8.clone(),
         }
     }
 }
 
-impl From<CardsID> for Card {
-    fn from(id: CardsID) -> Self {
-        match id {
-            CardsID::MUSH_8 => Card { card_id: id, at: 8, hp: 6 },
-            CardsID::MERCH_8 => Card { card_id: id, at: 5, hp: 9 },
-            CardsID::SPID_8 => Card { card_id: id, at: 4, hp: 4 },
-            CardsID::ROB_8 => Card { card_id: id, at: 3, hp: 3 },
+impl Card {
+    pub(crate) fn new(card_type: CardTypes, id: u32) -> Self {
+        match card_type {
+            CardTypes::MUSH_8 => Card { id, card_type, at: 8, hp: 6 },
+            CardTypes::MERCH_8 => Card { id, card_type, at: 5, hp: 9 },
+            CardTypes::SPID_8 => Card { id, card_type, at: 4, hp: 4 },
+            CardTypes::ROB_8 => Card { id, card_type, at: 3, hp: 3 },
         }
     }
 }
@@ -190,7 +191,7 @@ fn update_popup(
         Query<(&mut Style, &mut Text, &mut Visible), With<Popup>>,
     )>,
 ) {
-    let mut hover: Option<(CardsID, Transform)> = None;
+    let mut hover: Option<(CardTypes, Transform)> = None;
 
     // Get cursor position
     let window = windows.get_primary().unwrap();
@@ -199,7 +200,7 @@ fn update_popup(
         for (card, transform) in queries.q1().iter() {
             let card_pos = transform.translation;
             if overlap(cursor.xyz(), card_pos, (CARD_WIDTH / 2., CARD_HEIGHT / 2.)) {
-                hover = Some((card.card_id.clone(), transform.clone()));
+                hover = Some((card.card_type.clone(), transform.clone()));
                 break;
             }
         }
