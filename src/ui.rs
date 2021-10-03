@@ -1,4 +1,8 @@
+use bevy::math::vec2;
 use bevy::prelude::*;
+
+use crate::MainCamera;
+use crate::util::{cursor_pos, overlap};
 
 pub struct AnimationPlugin;
 
@@ -116,3 +120,93 @@ fn update_translate_animation(
         }
     }
 }
+
+pub struct DragAndDropPlugin;
+
+pub struct Draggable {
+    pub pos: Vec3,
+    pub size: Vec2,
+}
+
+pub struct Dragged;
+
+pub struct Dropped {
+    pub position: Vec2,
+}
+
+impl Plugin for DragAndDropPlugin {
+    fn build(&self, app: &mut AppBuilder) {
+        app
+            .add_system(drag_update.system())
+            .add_system(drop_update.system())
+            .add_system(begin_drag.system())
+        ;
+    }
+}
+
+fn drag_update(
+    windows: Res<Windows>,
+    mut queries: QuerySet<(
+        Query<&Transform, With<MainCamera>>,
+        Query<&mut Transform, With<Dragged>>,
+    )>,
+) {
+    let window = windows.get_primary().unwrap();
+    if let Some(cursor) = cursor_pos(window, queries.q0().single().unwrap()) {
+        // Get hovered card id & transform
+        for mut transform in queries.q1_mut().iter_mut() {
+            transform.translation.x = cursor.x;
+            transform.translation.y = cursor.y;
+        }
+    }
+}
+
+fn drop_update(
+    mut commands: Commands,
+    btn: Res<Input<MouseButton>>,
+    windows: Res<Windows>,
+    queries: QuerySet<(
+        Query<&Transform, With<MainCamera>>,
+        Query<Entity, With<Dragged>>,
+    )>,
+) {
+    if btn.just_released(MouseButton::Left) {
+        let window = windows.get_primary().unwrap();
+        // Get hovered card id & transform
+        if let Some(cursor) = cursor_pos(window, queries.q0().single().unwrap()) {
+            for e in queries.q1().iter() {
+                commands.entity(e)
+                    .remove::<Dragged>()
+                    .insert(Dropped {
+                        position: vec2(cursor.x, cursor.y)
+                    });
+            }
+        }
+    }
+}
+
+fn begin_drag(
+    mut commands: Commands,
+    btn: Res<Input<MouseButton>>,
+    windows: Res<Windows>,
+    mut queries: QuerySet<(
+        Query<&Transform, With<MainCamera>>,
+        Query<(Entity, &Draggable, &mut Transform), Without<TranslationAnimation>>,
+    )>,
+) {
+    if btn.just_pressed(MouseButton::Left) {
+        // Start dragging a card
+        let window = windows.get_primary().unwrap();
+        if let Some(cursor) = cursor_pos(window, queries.q0().single().unwrap()) {
+            // Get hovered card id & transform
+            for (e, draggable, mut transform) in queries.q1_mut().iter_mut() {
+                if overlap(cursor, draggable.pos, (draggable.size.x, draggable.size.y)) {
+                    commands.entity(e).insert(Dragged);
+                    transform.translation.x = cursor.x;
+                    transform.translation.y = cursor.y;
+                }
+            }
+        }
+    }
+}
+

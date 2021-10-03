@@ -1,15 +1,13 @@
-use bevy::math::vec3;
+use bevy::math::{vec2, vec3};
 use bevy::prelude::*;
 
-use crate::{AppState, HEIGHT, MainCamera, WIDTH};
-use crate::anim::{easing, TranslationAnimation};
+use crate::AppState;
 use crate::card::*;
 use crate::Handles;
-use crate::util::{card_transform, cursor_pos, overlap, Slot};
+use crate::ui::{Draggable, Dropped, easing, TranslationAnimation};
+use crate::util::{card_transform, Slot};
 
 pub struct ShopPlugin;
-
-struct Dragged;
 
 /// Cards are in one of these spots
 enum ShopSlots {
@@ -50,8 +48,6 @@ impl Plugin for ShopPlugin {
             )
             .add_system_set(
                 SystemSet::on_update(AppState::Shop)
-                    .with_system(drag_card.system())
-                    .with_system(move_card.system())
                     .with_system(drop_card.system())
             );
     }
@@ -86,92 +82,28 @@ fn add_card(id: Cards, slot: ShopSlot, commands: &mut Commands, handles: &Res<Ha
             ..Default::default()
         })
         .insert(CardComponent { card_id: id })
-        .insert(slot);
-}
-
-fn drag_card (
-    mut commands: Commands,
-    btn: Res<Input<MouseButton>>,
-    windows: Res<Windows>,
-    queries: QuerySet<(
-        Query<&Transform, With<MainCamera>>,
-        Query<(Entity, &Transform), (With<CardComponent>, Without<TranslationAnimation>)>,
-    )>,
-) {
-    if btn.just_pressed(MouseButton::Left) {
-        // Start dragging a card
-        let mut entity: Option<Entity> = None;
-        let window = windows.get_primary().unwrap();
-        if let Some(cursor) = cursor_pos(window, queries.q0().single().unwrap()) {
-            // Get hovered card id & transform
-            for (e, transform) in queries.q1().iter() {
-                let card_pos = transform.translation;
-                if overlap(cursor, card_pos, (CARD_WIDTH / 2., CARD_HEIGHT / 2.)) {
-                    entity = Some(e.clone());
-                    break;
-                }
-            }
-        }
-        if let Some(card) = entity {
-            commands
-                .entity(card)
-                .insert(Dragged);
-        }
-    }
-}
-
-fn move_card(
-    windows: Res<Windows>,
-    mut queries: QuerySet<(
-        Query<&Transform, With<MainCamera>>,
-        Query<(&mut Transform), With<Dragged>>,
-    )>,
-) {
-    let window = windows.get_primary().unwrap();
-    if let Some(cursor) = cursor_pos(window, queries.q0().single().unwrap()) {
-        // Get hovered card id & transform
-        for (mut transform) in queries.q1_mut().iter_mut() {
-            transform.translation.x = cursor.x;
-            transform.translation.y = cursor.y;
-        }
-    }
+        .insert(Draggable {
+            size: vec2(CARD_WIDTH / 2., CARD_HEIGHT / 2.),
+            pos: vec3(slot.x(), slot.y(), 0.0),
+        })
+        .insert(slot)
+    ;
 }
 
 fn drop_card(
     mut commands: Commands,
-    btn: Res<Input<MouseButton>>,
     time: Res<Time>,
-    windows: Res<Windows>,
-    queries: QuerySet<(
-        Query<&Transform, With<MainCamera>>,
-        Query<(Entity, &Transform, &ShopSlot), (With<CardComponent>, With<Dragged>)>,
-    )>,
+    query: Query<(Entity, &ShopSlot, &Dropped), With<CardComponent>>,
 ) {
-    if btn.just_released(MouseButton::Left) {
-        // Drop the card
-        let mut entity: Option<(Entity, Vec3, Vec3)> = None;
-        let window = windows.get_primary().unwrap();
-        if let Some(cursor) = cursor_pos(window, queries.q0().single().unwrap()) {
-            // Get hovered card id & transform
-            for (e, transform, slot) in queries.q1().iter() {
-                let card_pos = transform.translation;
-                if overlap(cursor, card_pos, (CARD_WIDTH / 2., CARD_HEIGHT / 2.)) {
-                    entity = Some((e.clone(), card_pos, vec3(slot.x(), slot.y(), 0.)));
-                    break;
-                }
-            }
-        }
-        if let Some((card, card_pos, slot)) = entity {
-            commands
-                .entity(card)
-                .remove::<Dragged>()
-                .insert(TranslationAnimation::from_start_end(
-                    time.seconds_since_startup(),
-                    1.3,
-                    card_pos,
-                    slot, // card.initial_position
-                    easing::Functions::CubicOut,
-                ));
-        }
+    for (e, slot, dropped) in query.iter() {
+        commands.entity(e)
+            .remove::<Dropped>()
+            .insert(TranslationAnimation::from_start_end(
+                time.seconds_since_startup(),
+                1.3,
+                vec3(dropped.position.x, dropped.position.y, 0.),
+                vec3(slot.x(), slot.y(), 0.),
+                easing::Functions::CubicOut,
+            ));
     }
 }
