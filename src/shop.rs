@@ -111,15 +111,15 @@ fn add_card(card: Card, slot: ShopSlot, commands: &mut Commands, handles: &Res<H
 fn drop_card(
     mut commands: Commands,
     time: Res<Time>,
-    query: Query<(Entity, &ShopSlot, &Dropped), With<Card>>,
+    query: Query<(Entity, &Transform, &ShopSlot), (With<Card>, With<Dropped>)>,
 ) {
-    for (e, slot, dropped) in query.iter() {
+    for (e, transform, slot) in query.iter() {
         commands.entity(e)
             .remove::<Dropped>()
             .insert(TranslationAnimation::from_start_end(
                 time.seconds_since_startup(),
                 1.3,
-                vec3(dropped.position.x, dropped.position.y, 0.),
+                vec3(transform.translation.x, transform.translation.y, 0.),
                 vec3(slot.x(), slot.y(), 0.),
                 easing::Functions::CubicOut,
             ));

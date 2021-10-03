@@ -129,10 +129,7 @@ pub struct Draggable {
 }
 
 pub struct Dragged;
-
-pub struct Dropped {
-    pub position: Vec2,
-}
+pub struct Dropped;
 
 impl Plugin for DragAndDropPlugin {
     fn build(&self, app: &mut AppBuilder) {
@@ -177,9 +174,7 @@ fn drop_update(
             for e in queries.q1().iter() {
                 commands.entity(e)
                     .remove::<Dragged>()
-                    .insert(Dropped {
-                        position: vec2(cursor.x, cursor.y)
-                    });
+                    .insert(Dropped);
             }
         }
     }
