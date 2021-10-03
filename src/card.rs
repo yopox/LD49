@@ -75,7 +75,7 @@ impl Plugin for CardPlugin {
     fn build(&self, app: &mut AppBuilder) {
         app
             .add_startup_system_to_stage(StartupStage::PostStartup, init_popup.system())
-            .add_system(update_popup.system());
+            .add_system(update_popup.system().after("move_card"));
     }
 }
 
