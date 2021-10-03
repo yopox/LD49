@@ -1,3 +1,4 @@
+use std::cmp::{min, max};
 use bevy::math::{vec2, vec3};
 use bevy::prelude::*;
 
@@ -52,12 +53,15 @@ struct SlotBorder;
 struct SlotHovered;
 struct Sold;
 struct CoinsDiff(i8, bool); // (gained coins ; can overflow)
+struct CoinLimit(u16);
+const MIN_COINS: u16 = 3;
 
 struct ShopCosts {
     buy: i8,
     sell: i8,
     refresh: i8,
     freeze: i8,
+    gold_limit: u16,
 }
 
 impl Default for ShopCosts {
@@ -66,7 +70,8 @@ impl Default for ShopCosts {
             buy: 3,
             sell: -1,
             refresh: 1,
-            freeze: 0
+            freeze: 0,
+            gold_limit: 10,
         }
     }
 }
@@ -101,7 +106,9 @@ fn init(
         "There should be one and only one player with myself"
     );
 
-    commands.insert_resource(ShopCosts::default());
+    let costs = ShopCosts::default();
+    commands.insert_resource(CoinLimit(max(MIN_COINS, min(global_data.turn, costs.gold_limit))));
+    commands.insert_resource(costs);
 
     for (i, &card) in player_data.board.iter().enumerate() {
         add_card(card,
@@ -173,7 +180,7 @@ fn init(
                 ..Default::default()
             },
             text: Text::with_section(
-                "COINS: 3".to_string(),
+                "".to_string(),
                 text_styles.love_bug_small.clone(),
                 Default::default()
             ),
@@ -231,6 +238,7 @@ fn add_card(card: Card, slot: ShopSlot, commands: &mut Commands, handles: &Res<H
 }
 
 fn update_ui(
+    coin_limit: Res<CoinLimit>,
     mut queries: QuerySet<(
         Query<&PlayerData, With<MySelf>>,
         Query<&mut Text, With<Coins>>,
@@ -242,7 +250,7 @@ fn update_ui(
     let level = data.shop_level;
 
     let mut coins_text = queries.q1_mut().single_mut().expect("Coins text not found.");
-    coins_text.sections[0].value = format!("COINS: {}", coins);
+    coins_text.sections[0].value = format!("COINS: {}/{}", coins, coin_limit.0);
 
     let mut level_text = queries.q2_mut().single_mut().expect("Level text not found.");
     level_text.sections[1].value = format!("SHOP LEVEL {}", level);
@@ -423,11 +431,13 @@ fn sell_card(
 }
 
 fn update_coins(
+    coin_limit: Res<CoinLimit>,
     mut ev_coins: EventReader<CoinsDiff>,
     mut data: Query<&mut PlayerData, With<MySelf>>,
 ) {
     for diff in ev_coins.iter() {
         let (mut player_data) = data.single_mut().expect("Can't find player data.");
+        if !diff.1 && diff.0 < 0 && player_data.coins + (-diff.0) as u16 > coin_limit.0 { break; }
         player_data.coins = (player_data.coins as i16 - diff.0 as i16) as u16;
     }
 }
