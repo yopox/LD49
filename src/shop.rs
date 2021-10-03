@@ -1,6 +1,8 @@
+use bevy::math::vec3;
 use bevy::prelude::*;
 
 use crate::{AppState, HEIGHT, MainCamera, WIDTH};
+use crate::anim::{easing, TranslationAnimation};
 use crate::card::*;
 use crate::Handles;
 use crate::util::{card_transform, cursor_pos, overlap, Slot};
@@ -87,13 +89,13 @@ fn add_card(id: Cards, slot: ShopSlot, commands: &mut Commands, handles: &Res<Ha
         .insert(slot);
 }
 
-fn drag_card(
+fn drag_card (
     mut commands: Commands,
     btn: Res<Input<MouseButton>>,
     windows: Res<Windows>,
     queries: QuerySet<(
         Query<&Transform, With<MainCamera>>,
-        Query<(Entity, &Transform), With<CardComponent>>,
+        Query<(Entity, &Transform), (With<CardComponent>, Without<TranslationAnimation>)>,
     )>,
 ) {
     if btn.just_pressed(MouseButton::Left) {
@@ -138,30 +140,38 @@ fn move_card(
 fn drop_card(
     mut commands: Commands,
     btn: Res<Input<MouseButton>>,
+    time: Res<Time>,
     windows: Res<Windows>,
     queries: QuerySet<(
         Query<&Transform, With<MainCamera>>,
-        Query<(Entity, &Transform), (With<CardComponent>, With<Dragged>)>,
+        Query<(Entity, &Transform, &ShopSlot), (With<CardComponent>, With<Dragged>)>,
     )>,
 ) {
     if btn.just_released(MouseButton::Left) {
         // Drop the card
-        let mut entity: Option<Entity> = None;
+        let mut entity: Option<(Entity, Vec3, Vec3)> = None;
         let window = windows.get_primary().unwrap();
         if let Some(cursor) = cursor_pos(window, queries.q0().single().unwrap()) {
             // Get hovered card id & transform
-            for (e, transform) in queries.q1().iter() {
+            for (e, transform, slot) in queries.q1().iter() {
                 let card_pos = transform.translation;
                 if overlap(cursor, card_pos, (CARD_WIDTH / 2., CARD_HEIGHT / 2.)) {
-                    entity = Some(e.clone());
+                    entity = Some((e.clone(), card_pos, vec3(slot.x(), slot.y(), 0.)));
                     break;
                 }
             }
         }
-        if let Some(card) = entity {
+        if let Some((card, card_pos, slot)) = entity {
             commands
                 .entity(card)
-                .remove::<Dragged>();
+                .remove::<Dragged>()
+                .insert(TranslationAnimation::from_start_end(
+                    time.seconds_since_startup(),
+                    1.3,
+                    card_pos,
+                    slot, // card.initial_position
+                    easing::Functions::CubicOut,
+                ));
         }
     }
 }

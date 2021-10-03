@@ -10,6 +10,7 @@ authors = ["yopox yopoxdev@gmail.com"]
 bevy = "0.5.0"
 rand = "0.8.4"
 derive_more = "0.99.16"
+ezing = "0.2.1"
 
 [[bin]]
 name = "abstract"

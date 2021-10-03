@@ -4,11 +4,13 @@ mod font;
 mod card;
 mod util;
 mod title;
+mod anim;
 
 use bevy::prelude::*;
 use crate::shop::ShopPlugin;
 use crate::card::CardPlugin;
 use crate::title::TitlePlugin;
+use crate::anim::AnimationPlugin;
 
 pub const WIDTH: f32 = 1280.;
 pub const HEIGHT: f32 = 720.;
@@ -41,6 +43,7 @@ fn main() {
         .add_plugin(ShopPlugin)
         .add_plugin(CardPlugin)
         .add_state(AppState::Shop)
+        .add_plugin(AnimationPlugin)
         .add_plugin(TitlePlugin)
         .add_startup_system(setup.system())
         .add_startup_system(crate::font::load_fonts.system())
