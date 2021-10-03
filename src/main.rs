@@ -21,8 +21,10 @@ enum AppState {
 }
 
 pub struct Handles {
-    pub dummy_card: Handle<ColorMaterial>,
-    pub dummy_card2: Handle<ColorMaterial>,
+    pub mush_8: Handle<ColorMaterial>,
+    pub merch_8: Handle<ColorMaterial>,
+    pub spid_8: Handle<ColorMaterial>,
+    pub rob_8: Handle<ColorMaterial>,
 }
 struct MainCamera;
 
@@ -38,7 +40,7 @@ fn main() {
         .add_plugins(DefaultPlugins)
         .add_plugin(ShopPlugin)
         .add_plugin(CardPlugin)
-        .add_state(AppState::Title)
+        .add_state(AppState::Shop)
         .add_plugin(TitlePlugin)
         .add_startup_system(setup.system())
         .add_startup_system(crate::font::load_fonts.system())
@@ -53,8 +55,10 @@ fn setup(
 ) {
     // Load assets
     commands.insert_resource(Handles {
-        dummy_card: materials.add(asset_server.load("araignee_boss_crop.png").into()),
-        dummy_card2: materials.add(asset_server.load("araignee_boss_crop_inv.png").into()),
+        mush_8: materials.add(asset_server.load("MUSH_8.png").into()),
+        merch_8: materials.add(asset_server.load("MERCH_8.png").into()),
+        spid_8: materials.add(asset_server.load("SPID_8.png").into()),
+        rob_8: materials.add(asset_server.load("ROB_8.png").into()),
     });
 
     // Spawn camera

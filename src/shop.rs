@@ -3,10 +3,41 @@ use bevy::prelude::*;
 use crate::{AppState, HEIGHT, MainCamera, WIDTH};
 use crate::card::*;
 use crate::Handles;
-use crate::util::{cursor_pos, overlap};
+use crate::util::{card_transform, cursor_pos, overlap, Slot};
 
 pub struct ShopPlugin;
-struct  Dragged;
+
+struct Dragged;
+
+/// Cards are in one of these spots
+enum ShopSlots {
+    SHOP,
+    BOARD,
+    HAND,
+}
+
+struct ShopSlot {
+    row: ShopSlots,
+    id: u8,
+}
+
+impl Slot for ShopSlot {
+    fn x(&self) -> f32 {
+        match &self.row {
+            ShopSlots::SHOP => 300. + 200. * self.id as f32,
+            ShopSlots::BOARD => 300. + 200. * self.id as f32,
+            ShopSlots::HAND => 300. + 200. * self.id as f32,
+        }
+    }
+
+    fn y(&self) -> f32 {
+        match &self.row {
+            ShopSlots::SHOP => 625.,
+            ShopSlots::BOARD => 375.,
+            ShopSlots::HAND => 125.,
+        }
+    }
+}
 
 impl Plugin for ShopPlugin {
     fn build(&self, app: &mut AppBuilder) {
@@ -28,21 +59,32 @@ fn init(
     mut commands: Commands,
     handles: Res<Handles>,
 ) {
-    commands
-        .spawn_bundle(SpriteBundle {
-            material: handles.dummy_card.clone(),
-            transform: card_transform(WIDTH / 2. - 200., HEIGHT / 2.),
-            ..Default::default()
-        })
-        .insert(CardComponent { card_id: Cards::DUMMY_1 });
+    add_card(Cards::SPID_8,
+             ShopSlot { row: ShopSlots::HAND, id: 0 },
+             &mut commands, &handles);
 
+    add_card(Cards::ROB_8,
+             ShopSlot { row: ShopSlots::BOARD, id: 0 },
+             &mut commands, &handles);
+
+    add_card(Cards::MERCH_8,
+             ShopSlot { row: ShopSlots::SHOP, id: 0 },
+             &mut commands, &handles);
+
+    add_card(Cards::MUSH_8,
+             ShopSlot { row: ShopSlots::SHOP, id: 1 },
+             &mut commands, &handles);
+}
+
+fn add_card(id: Cards, slot: ShopSlot, commands: &mut Commands, handles: &Res<Handles>) {
     commands
         .spawn_bundle(SpriteBundle {
-            material: handles.dummy_card2.clone(),
-            transform: card_transform(WIDTH / 2. + 100., HEIGHT / 2.),
+            material: id.handle(&handles),
+            transform: card_transform(slot.x(), slot.y()),
             ..Default::default()
         })
-        .insert(CardComponent { card_id: Cards::DUMMY_2 });
+        .insert(CardComponent { card_id: id })
+        .insert(slot);
 }
 
 fn drag_card(

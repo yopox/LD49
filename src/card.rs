@@ -1,25 +1,21 @@
+use bevy::ecs::system::EntityCommands;
 use bevy::prelude::*;
 
 use crate::font::*;
-use crate::{MainCamera, WIDTH, HEIGHT};
+use crate::{MainCamera, WIDTH, HEIGHT, Handles};
+use crate::abs::EffectTrigger;
 use crate::util::{cursor_pos, overlap};
 
 pub const CARD_SCALE: f32 = 0.4;
 pub const CARD_WIDTH: f32 = 270. * CARD_SCALE;
 pub const CARD_HEIGHT: f32 = 420. * CARD_SCALE;
 
-pub fn card_transform(x: f32, y: f32) -> Transform {
-    return Transform {
-        translation: Vec3::new(x, y, 2.),
-        scale: Vec3::new(CARD_SCALE, CARD_SCALE, 1.),
-        ..Default::default()
-    }
-}
-
 #[derive(Copy, Clone)]
 pub enum Cards {
-    DUMMY_1,
-    DUMMY_2,
+    MUSH_8,
+    MERCH_8,
+    SPID_8,
+    ROB_8,
 }
 
 pub struct CardComponent {
@@ -27,24 +23,48 @@ pub struct CardComponent {
 }
 
 impl Cards {
-    fn name(&self) -> &'static str {
+    pub fn name(&self) -> &'static str {
         match self {
-            Cards::DUMMY_1 => "Dummy",
-            Cards::DUMMY_2 => "Dummy 2",
+            Cards::MUSH_8 => "Titanicus",
+            Cards::MERCH_8 => "Tujilus",
+            Cards::SPID_8 => "Australian black widow",
+            Cards::ROB_8 => "SkyBot",
         }
     }
 
-    fn ability(&self) -> &'static str {
+    pub fn ability(&self) -> &'static str {
         match self {
-            Cards::DUMMY_1 => "Ability 1",
-            Cards::DUMMY_2 => "Ability 2",
+            Cards::MUSH_8 => "Gigantism",
+            Cards::MERCH_8 => "Dexterity",
+            Cards::SPID_8 => "Cannibalism",
+            Cards::ROB_8 => "Download",
         }
     }
 
-    fn description(&self) -> &'static str {
+    pub fn description(&self) -> &'static str {
         match self {
-            Cards::DUMMY_1 => "Dummy description :-)",
-            Cards::DUMMY_2 => "Another dummy description :-(",
+            Cards::MUSH_8 => "Gets +1 ATK.",
+            Cards::MERCH_8 => "Attacks another enemy once.",
+            Cards::SPID_8 => "Eats the lowest rank spider\nof the board, and gains\nits stats.",
+            Cards::ROB_8 => "Steals +1 HP and +1 ATK\nfrom each allied robot.",
+        }
+    }
+
+    pub fn trigger(&self) -> EffectTrigger {
+        match self {
+            Cards::MUSH_8 => EffectTrigger::KILL,
+            Cards::MERCH_8 => EffectTrigger::SURVIVED,
+            Cards::SPID_8 => EffectTrigger::TURN,
+            Cards::ROB_8 => EffectTrigger::TURN,
+        }
+    }
+
+    pub fn handle(&self, handles: &Res<Handles>) -> Handle<ColorMaterial> {
+        match self {
+            Cards::MUSH_8 => handles.mush_8.clone(),
+            Cards::MERCH_8 => handles.merch_8.clone(),
+            Cards::SPID_8 => handles.spid_8.clone(),
+            Cards::ROB_8 => handles.rob_8.clone(),
         }
     }
 }
