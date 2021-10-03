@@ -2,7 +2,7 @@ use bevy::prelude::*;
 use rand::{Rng, SeedableRng};
 use rand::rngs::StdRng;
 
-use crate::card::{Card, CardPlugin, CardsTypes};
+use crate::card::{Card, CardPlugin, CardTypes};
 use crate::fight::{FightPlugin, MyFoe};
 use crate::shop::ShopPlugin;
 use crate::title::TitlePlugin;
