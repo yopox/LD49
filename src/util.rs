@@ -21,7 +21,7 @@ pub fn cursor_pos(
 }
 
 pub fn overlap(
-    cursor: Vec4,
+    cursor: Vec3,
     object: Vec3,
     size: (f32, f32),
 ) -> bool {

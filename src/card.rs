@@ -1,4 +1,5 @@
 use bevy::ecs::system::EntityCommands;
+use bevy::math::Vec4Swizzles;
 use bevy::prelude::*;
 
 use crate::{Handles, HEIGHT, MainCamera, WIDTH};
@@ -154,7 +155,7 @@ fn update_popup(
         // Get hovered card id & transform
         for (card, transform) in queries.q1().iter() {
             let card_pos = transform.translation;
-            if overlap(cursor, card_pos, (CARD_WIDTH / 2., CARD_HEIGHT / 2.)) {
+            if overlap(cursor.xyz(), card_pos, (CARD_WIDTH / 2., CARD_HEIGHT / 2.)) {
                 hover = Some((card.card_id.clone(), transform.clone()));
                 break;
             }

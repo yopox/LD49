@@ -1,4 +1,4 @@
-use bevy::math::vec2;
+use bevy::math::{vec2, vec3, Vec4Swizzles};
 use bevy::prelude::*;
 
 use crate::MainCamera;
@@ -195,13 +195,23 @@ fn begin_drag(
         if let Some(cursor) = cursor_pos(window, queries.q0().single().unwrap()) {
             // Get hovered card id & transform
             for (e, draggable, mut transform) in queries.q1_mut().iter_mut() {
-                if overlap(cursor, draggable.pos, (draggable.size.x, draggable.size.y)) {
+                if overlap(cursor.xyz(), draggable.pos, (draggable.size.x, draggable.size.y)) {
                     commands.entity(e).insert(Dragged);
                     transform.translation.x = cursor.x;
                     transform.translation.y = cursor.y;
+                    break;
                 }
             }
         }
     }
 }
 
+pub fn animate(time: &Res<Time>, from: (f32, f32), to: (f32, f32)) -> TranslationAnimation {
+    TranslationAnimation::from_start_end(
+        time.seconds_since_startup(),
+        1.3,
+        vec3(from.0, from.1, 0.),
+        vec3(to.0, to.1, 0.),
+        easing::Functions::CubicOut,
+    )
+}

@@ -4,18 +4,20 @@ use bevy::prelude::*;
 use crate::{AppState, HEIGHT, MySelf, PlayerData, WIDTH};
 use crate::card::*;
 use crate::Handles;
-use crate::ui::{Draggable, Dropped, easing, TranslationAnimation};
-use crate::util::{card_transform, Slot};
+use crate::ui::{animate, Draggable, Dragged, Dropped, easing, TranslationAnimation};
+use crate::util::{card_transform, overlap, Slot};
 
 pub struct ShopPlugin;
 
 /// Cards are in one of these spots
+#[derive(PartialEq, Clone)]
 enum ShopSlots {
     SHOP,
     BOARD,
     HAND,
 }
 
+#[derive(Clone)]
 struct ShopSlot {
     row: ShopSlots,
     id: u8,
@@ -39,6 +41,9 @@ impl Slot for ShopSlot {
     }
 }
 
+struct SlotBorder;
+struct SlotHovered;
+
 impl Plugin for ShopPlugin {
     fn build(&self, app: &mut AppBuilder) {
         app
@@ -49,6 +54,7 @@ impl Plugin for ShopPlugin {
             .add_system_set(
                 SystemSet::on_update(AppState::Shop)
                     .with_system(drop_card.system())
+                    .with_system(highlight_slot.system())
             );
     }
 }
@@ -82,6 +88,16 @@ fn init(
              ShopSlot { row: ShopSlots::SHOP, id: 1 },
              &mut commands, &handles);
 
+    //Slots
+    for i in 0..=6 {
+        if i <= 4 {
+            commands.spawn().insert(ShopSlot { row: ShopSlots::HAND, id: i });
+        }
+        commands.spawn().insert(ShopSlot { row: ShopSlots::BOARD, id: i });
+        commands.spawn().insert(ShopSlot { row: ShopSlots::SHOP, id: i });
+    }
+
+    // Background
     commands.spawn_bundle(SpriteBundle {
         material: handles.shop_bg.clone(),
         transform: Transform {
@@ -90,6 +106,18 @@ fn init(
         },
         ..Default::default()
     });
+
+    // Slot border
+    commands
+        .spawn_bundle(SpriteBundle {
+            material: handles.slot_border.clone(),
+            visible: Visible {
+                is_visible: false,
+                is_transparent: true,
+            },
+            ..Default::default()
+        })
+        .insert(SlotBorder);
 }
 
 fn add_card(card: Card, slot: ShopSlot, commands: &mut Commands, handles: &Res<Handles>) {
@@ -108,6 +136,50 @@ fn add_card(card: Card, slot: ShopSlot, commands: &mut Commands, handles: &Res<H
     ;
 }
 
+fn highlight_slot(
+    mut commands: Commands,
+    mut queries: QuerySet<(
+        Query<(&Transform, &ShopSlot), (With<Card>, With<Dragged>)>,
+        Query<(Entity, &ShopSlot), Without<Card>>,
+        Query<(&mut Transform, &mut Visible), With<SlotBorder>>,
+    )>,
+) {
+    let dragged_card = queries.q0().single();
+    if !dragged_card.is_ok() { return; }
+    let (transform, origin_slot) = dragged_card.unwrap();
+    let translation = transform.translation.clone();
+    let origin_slot = origin_slot.clone();
+
+    let mut hovered_slot: Option<ShopSlot> = None;
+    for (e, slot) in queries.q1_mut().iter_mut() {
+        if overlap(translation, vec3(slot.x(), slot.y(), 0.),
+                   (CARD_WIDTH / 2., CARD_HEIGHT / 2.)) {
+            commands.entity(e).insert(SlotHovered);
+            hovered_slot = Some(slot.clone());
+        } else {
+            commands.entity(e).remove::<SlotHovered>();
+        }
+    }
+
+    // Check if the card can be dropped
+    if hovered_slot.is_none() { return; }
+    let hovered_slot = hovered_slot.unwrap();
+    let possible = match origin_slot.row {
+        ShopSlots::SHOP => hovered_slot.row == ShopSlots::HAND,
+        ShopSlots::BOARD => hovered_slot.row == ShopSlots::BOARD || hovered_slot.row == ShopSlots::SHOP,
+        ShopSlots::HAND => hovered_slot.row == ShopSlots::BOARD,
+    };
+
+    let (mut border_transform, mut visible) = queries.q2_mut().single_mut().unwrap();
+    if possible {
+        visible.is_visible = true;
+        border_transform.translation.x = hovered_slot.x();
+        border_transform.translation.y = hovered_slot.y();
+    } else {
+        visible.is_visible = false;
+    }
+}
+
 fn drop_card(
     mut commands: Commands,
     time: Res<Time>,
@@ -116,12 +188,6 @@ fn drop_card(
     for (e, transform, slot) in query.iter() {
         commands.entity(e)
             .remove::<Dropped>()
-            .insert(TranslationAnimation::from_start_end(
-                time.seconds_since_startup(),
-                1.3,
-                vec3(transform.translation.x, transform.translation.y, 0.),
-                vec3(slot.x(), slot.y(), 0.),
-                easing::Functions::CubicOut,
-            ));
+            .insert(animate(&time, (transform.translation.x, transform.translation.y), (slot.x(), slot.y())));
     }
 }
