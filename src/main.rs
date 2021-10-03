@@ -27,6 +27,8 @@ pub struct Handles {
     pub merch_8: Handle<ColorMaterial>,
     pub spid_8: Handle<ColorMaterial>,
     pub rob_8: Handle<ColorMaterial>,
+
+    pub shop_bg: Handle<ColorMaterial>,
 }
 struct MainCamera;
 
@@ -63,6 +65,8 @@ fn setup(
         merch_8: materials.add(asset_server.load("MERCH_8.png").into()),
         spid_8: materials.add(asset_server.load("SPID_8.png").into()),
         rob_8: materials.add(asset_server.load("ROB_8.png").into()),
+
+        shop_bg: materials.add(asset_server.load("shop.png").into()),
     });
 
     // Spawn camera

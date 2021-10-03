@@ -1,7 +1,7 @@
 use bevy::math::{vec2, vec3};
 use bevy::prelude::*;
 
-use crate::AppState;
+use crate::{AppState, HEIGHT, WIDTH};
 use crate::card::*;
 use crate::Handles;
 use crate::ui::{Draggable, Dropped, easing, TranslationAnimation};
@@ -24,17 +24,17 @@ struct ShopSlot {
 impl Slot for ShopSlot {
     fn x(&self) -> f32 {
         match &self.row {
-            ShopSlots::SHOP => 300. + 200. * self.id as f32,
-            ShopSlots::BOARD => 300. + 200. * self.id as f32,
-            ShopSlots::HAND => 300. + 200. * self.id as f32,
+            ShopSlots::SHOP => 192. + 128. * self.id as f32,
+            ShopSlots::BOARD => 256. + 128. * self.id as f32,
+            ShopSlots::HAND => 448. + 128. * self.id as f32,
         }
     }
 
     fn y(&self) -> f32 {
         match &self.row {
-            ShopSlots::SHOP => 625.,
-            ShopSlots::BOARD => 375.,
-            ShopSlots::HAND => 125.,
+            ShopSlots::SHOP => HEIGHT - 160.,
+            ShopSlots::BOARD => HEIGHT - 384.,
+            ShopSlots::HAND => HEIGHT - 576.,
         }
     }
 }
@@ -72,6 +72,15 @@ fn init(
     add_card(Cards::MUSH_8,
              ShopSlot { row: ShopSlots::SHOP, id: 1 },
              &mut commands, &handles);
+
+    commands.spawn_bundle(SpriteBundle {
+        material: handles.shop_bg.clone(),
+        transform: Transform {
+            translation: Vec3::new(WIDTH / 2., HEIGHT / 2., 0.),
+            ..Default::default()
+        },
+        ..Default::default()
+    });
 }
 
 fn add_card(id: Cards, slot: ShopSlot, commands: &mut Commands, handles: &Res<Handles>) {
