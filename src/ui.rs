@@ -84,11 +84,11 @@ impl Plugin for AnimationPlugin {
 }
 
 pub struct TranslationAnimation {
-    t0: f64,
-    duration: f64,
-    translation: Vec3,
-    start: Vec3,
-    f: easing::Functions,
+    pub t0: f64,
+    pub duration: f64,
+    pub translation: Vec3,
+    pub start: Vec3,
+    pub f: easing::Functions,
 }
 
 impl TranslationAnimation {

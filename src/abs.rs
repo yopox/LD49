@@ -16,7 +16,7 @@ use crate::PlayerData;
 
 #[derive(Debug, Clone)]
 pub enum CombatEvents {
-    Attack { att_id: u16, att_card_index: u8, def_card_index: u8, def_card_hp_after: u16 },
+    Attack { att_id: u16, att_card_index: u8, def_card_index: u8, change_def_hp: i32 },
     Death { player_id: u16, card_index: u8 },
     StatsChange { player_id: u16, card_index: u8, hp: i32, at: i32 },
     ApplyEffect { card_index: u8, player_id: u16 },
@@ -27,7 +27,7 @@ impl Display for CombatEvents {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
             CombatEvents::GoldChange { player_id, change } => write!(f, "GoldChange to={} of={} gold", player_id, change),
-            CombatEvents::Attack { att_id, att_card_index: att_card_id, def_card_index: def_card_id, def_card_hp_after } => { write!(f, "Attack of {}.{} on {}.{} --> hp after = {}", att_id, att_card_id, 1 - att_id, def_card_id, def_card_hp_after) }
+            CombatEvents::Attack { att_id, att_card_index: att_card_id, def_card_index: def_card_id, change_def_hp } => { write!(f, "Attack of {}.{} on {}.{} --> hp after = {}", att_id, att_card_id, 1 - att_id, def_card_id, change_def_hp) }
             CombatEvents::Death { player_id, card_index: card_id } => { write!(f, "Death of {}.{}", player_id, card_id) }
             CombatEvents::StatsChange { .. } => { write!(f, "Stats Change") }
             CombatEvents::ApplyEffect { .. } => { write!(f, "Effect") }
@@ -80,6 +80,9 @@ fn relu(i: i32) -> u16 {
     if i < 0 { 0 } else { i as u16 }
 }
 
+#[inline]
+fn min2<T: PartialOrd>(x: T, y: T) -> T { if x < y { x } else { y }}
+
 fn simulate_attack<T: Rng>(att_card_index: u8, att_hb: &mut PlayerData, def_hb: &mut PlayerData, rng: &mut T) -> Vec<CombatEvents> {
     let def_card_index = rng.gen_range(0..get_number_of_cards(def_hb)) as u8;
     let mut events = Vec::with_capacity(2);
@@ -90,7 +93,7 @@ fn simulate_attack<T: Rng>(att_card_index: u8, att_hb: &mut PlayerData, def_hb: 
     let def_card_trigger = def_card.card_id.trigger();
 
     let def_post_hp = def_card.hp as i32 - att_card.at as i32;
-    events.push(CombatEvents::Attack { att_card_index, att_id: att_hb.id, def_card_index, def_card_hp_after: relu(def_post_hp) });
+    events.push(CombatEvents::Attack { att_card_index, att_id: att_hb.id, def_card_index, change_def_hp: - (min2(def_card.hp, att_card.at) as i32) });
 
     if def_post_hp <= 0 {
         // Dies
@@ -118,7 +121,7 @@ fn simulate_attack<T: Rng>(att_card_index: u8, att_hb: &mut PlayerData, def_hb: 
 
     // Counter-attack
     let att_post_hp = att_card.hp as i32 - def_card.at as i32;
-    events.push(CombatEvents::Attack { att_id: def_hb.id, def_card_index: att_card_index, att_card_index: def_card_index, def_card_hp_after: relu(att_post_hp) });
+    events.push(CombatEvents::Attack { att_id: def_hb.id, def_card_index: att_card_index, att_card_index: def_card_index, change_def_hp: - (min2(att_card.hp, def_card.at) as i32)});
 
     if att_post_hp <= 0 {
         // Dies
@@ -167,5 +170,10 @@ pub(crate) fn simulate_combat<T: Rng>(mut hb1: PlayerData, mut hb2: PlayerData, 
         next_cards_to_play[to_play as usize] = (next_cards_to_play[to_play as usize] + 1) % quotient;
         to_play = !to_play;
     }
+
+    for e in &events {
+        println!("{}", e);
+    }
+
     return events;
 }
