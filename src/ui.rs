@@ -76,10 +76,13 @@ pub mod easing {
     }
 }
 
+pub struct TransitionOver(pub Entity);
 
 impl Plugin for AnimationPlugin {
     fn build(&self, app: &mut AppBuilder) {
-        app.add_system(update_translate_animation.system().label("translate-animation:update"));
+        app
+            .add_event::<TransitionOver>()
+            .add_system(update_translate_animation.system().label("translate-animation:update"));
     }
 }
 
@@ -106,6 +109,7 @@ impl TranslationAnimation {
 
 fn update_translate_animation(
     time: Res<Time>,
+    mut ev_transition: EventWriter<TransitionOver>,
     mut query: Query<(Entity, &TranslationAnimation, &mut Transform)>,
     mut commands: Commands,
 ) {
@@ -117,6 +121,7 @@ fn update_translate_animation(
             transform.translation = *start + *speed * easing::apply(f, t);
         } else {
             commands.entity(e).remove::<TranslationAnimation>();
+            ev_transition.send(TransitionOver(e));
         }
     }
 }

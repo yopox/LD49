@@ -6,7 +6,7 @@ use crate::card::*;
 use crate::font::TextStyles;
 use crate::GlobalData;
 use crate::Handles;
-use crate::ui::{animate, animate_switch, animate_fast, Draggable, Dragged, DROP_BORDER, Dropped, easing, TranslationAnimation};
+use crate::ui::{animate, animate_switch, animate_fast, Draggable, Dragged, DROP_BORDER, Dropped, easing, TranslationAnimation, TransitionOver};
 use crate::util::{card_transform, overlap, Slot};
 
 pub struct ShopPlugin;
@@ -19,6 +19,7 @@ enum ShopSlots {
     SHOP,
     BOARD,
     HAND,
+    SELL,
 }
 
 #[derive(PartialEq, Clone)]
@@ -30,7 +31,8 @@ struct ShopSlot {
 impl Slot for ShopSlot {
     fn x(&self) -> f32 {
         match &self.row {
-            ShopSlots::SHOP => 192. + 128. * self.id as f32,
+            ShopSlots::SHOP => 192. + 128. * (self.id + if self.id > 2 { 1 } else { 0 }) as f32,
+            ShopSlots::SELL => 192. + 128. * 3.,
             ShopSlots::BOARD => 256. + 128. * self.id as f32,
             ShopSlots::HAND => 448. + 128. * self.id as f32,
         }
@@ -39,6 +41,7 @@ impl Slot for ShopSlot {
     fn y(&self) -> f32 {
         match &self.row {
             ShopSlots::SHOP => HEIGHT - 160.,
+            ShopSlots::SELL => HEIGHT - 160.,
             ShopSlots::BOARD => HEIGHT - 384.,
             ShopSlots::HAND => HEIGHT - 576.,
         }
@@ -47,19 +50,42 @@ impl Slot for ShopSlot {
 
 struct SlotBorder;
 struct SlotHovered;
+struct Sold;
+struct CoinsDiff(i8, bool); // (gained coins ; can overflow)
+
+struct ShopCosts {
+    buy: i8,
+    sell: i8,
+    refresh: i8,
+    freeze: i8,
+}
+
+impl Default for ShopCosts {
+    fn default() -> Self {
+        ShopCosts {
+            buy: 3,
+            sell: -1,
+            refresh: 1,
+            freeze: 0
+        }
+    }
+}
 
 impl Plugin for ShopPlugin {
     fn build(&self, app: &mut AppBuilder) {
         app
+            .add_event::<CoinsDiff>()
             .add_system_set(
                 SystemSet::on_enter(AppState::Shop)
                     .with_system(init.system())
             )
             .add_system_set(
                 SystemSet::on_update(AppState::Shop)
-                    .with_system(drop_card.system().after("drag:end"))
+                    .with_system(drop_card.system().label("drop").after("drag:end"))
                     .with_system(highlight_slot.system().after("drag:update"))
                     .with_system(update_ui.system())
+                    .with_system(sell_card.system().after("drop"))
+                    .with_system(update_coins.system())
             );
     }
 }
@@ -74,6 +100,8 @@ fn init(
     let player_data = query.single().expect(
         "There should be one and only one player with myself"
     );
+
+    commands.insert_resource(ShopCosts::default());
 
     for (i, &card) in player_data.board.iter().enumerate() {
         add_card(card,
@@ -97,11 +125,16 @@ fn init(
 
     // Slots
     for i in 0..=6 {
+        if i == 0 {
+            commands.spawn().insert(ShopSlot { row: ShopSlots::SELL, id: 0 });
+        }
         if i <= 4 {
             commands.spawn().insert(ShopSlot { row: ShopSlots::HAND, id: i });
         }
+        if i < 6 {
+            commands.spawn().insert(ShopSlot { row: ShopSlots::SHOP, id: i });
+        }
         commands.spawn().insert(ShopSlot { row: ShopSlots::BOARD, id: i });
-        commands.spawn().insert(ShopSlot { row: ShopSlots::SHOP, id: i });
     }
 
     // Background
@@ -205,7 +238,7 @@ fn update_ui(
     )>,
 ) {
     let data = queries.q0().single().expect("No data for the player");
-    let coins = data.gold;
+    let coins = data.coins;
     let level = data.shop_level;
 
     let mut coins_text = queries.q1_mut().single_mut().expect("Coins text not found.");
@@ -255,8 +288,9 @@ fn highlight_slot(
     let hovered_slot = hovered_slot.unwrap();
     let possible = match origin_slot.row {
         ShopSlots::SHOP => hovered_slot.row == ShopSlots::HAND,
-        ShopSlots::BOARD => hovered_slot.row == ShopSlots::BOARD || hovered_slot.row == ShopSlots::SHOP,
+        ShopSlots::BOARD => hovered_slot.row == ShopSlots::BOARD || hovered_slot.row == ShopSlots::SELL,
         ShopSlots::HAND => hovered_slot.row == ShopSlots::BOARD || hovered_slot.row == ShopSlots::HAND,
+        ShopSlots::SELL => false,
     };
 
     // Update the border accordingly
@@ -273,10 +307,13 @@ fn highlight_slot(
 fn drop_card(
     mut commands: Commands,
     mut ev_dropped: EventReader<Dropped>,
+    mut ev_coins: EventWriter<CoinsDiff>,
+    costs: Res<ShopCosts>,
     time: Res<Time>,
     mut queries: QuerySet<(
         Query<(Entity, &ShopSlot), With<SlotHovered>>,
         Query<(Entity, &Transform, &mut ShopSlot), With<Card>>,
+        Query<(&PlayerData), With<MySelf>>,
     )>,
 ) {
     for dropped in ev_dropped.iter() {
@@ -310,18 +347,20 @@ fn drop_card(
                     if dropped.0 == e {
                         origin_slot = Some(slot.clone());
                     } else if destination_slot == *slot {
-                        existing_entity = Some(e.clone());
+                        existing_entity = Some(e);
                     }
                 }
 
                 let origin_slot = origin_slot.unwrap();
                 let origin_pos = (origin_slot.x(), origin_slot.y());
 
-                // TODO: Illegal to buy if the player has not enough gold
+                let (data) = queries.q2().single().expect("Can't find player data.");
+
                 let legal_move: bool = match origin_slot.row {
                     ShopSlots::HAND => destination_slot.row == ShopSlots::HAND || destination_slot.row == ShopSlots::BOARD && existing_entity.is_none(),
-                    ShopSlots::BOARD => destination_slot.row == ShopSlots::BOARD || destination_slot.row == ShopSlots::SHOP,
-                    ShopSlots::SHOP => destination_slot.row == ShopSlots::HAND && existing_entity.is_none(),
+                    ShopSlots::BOARD => destination_slot.row == ShopSlots::BOARD || destination_slot.row == ShopSlots::SELL,
+                    ShopSlots::SHOP => destination_slot.row == ShopSlots::HAND && existing_entity.is_none() && data.coins >= costs.buy as u16,
+                    ShopSlots::SELL => false,
                 };
                 // println!["Move: {:?} {} -> {:?} {} : {}", &origin_slot.row, &origin_slot.id, &destination_slot.row, &destination_slot.id, legal_move];
 
@@ -334,6 +373,10 @@ fn drop_card(
                             commands
                                 .entity(e)
                                 .insert(animate_fast(&time, (transform.translation.x, transform.translation.y), (destination_slot.x(), destination_slot.y())));
+                            if destination_slot.row == ShopSlots::SELL { commands.entity(e).insert(Sold); }
+                            if origin_slot.row == ShopSlots::SHOP && destination_slot.row == ShopSlots::HAND {
+                                ev_coins.send(CoinsDiff(costs.buy, false));
+                            }
                         } else {
                             commands
                                 .entity(e)
@@ -359,5 +402,32 @@ fn drop_card(
                 }
             }
         }
+    }
+}
+
+fn sell_card(
+    mut commands: Commands,
+    costs: Res<ShopCosts>,
+    mut ev_transition: EventReader<TransitionOver>,
+    mut ev_coins: EventWriter<CoinsDiff>,
+    mut cards: Query<(Entity, &ShopSlot), With<Card>>,
+) {
+    for transition in ev_transition.iter() {
+        for (e, slot) in cards.iter_mut() {
+            if e == transition.0 && slot.row == ShopSlots::SELL {
+                commands.entity(transition.0).despawn();
+                ev_coins.send(CoinsDiff(costs.sell, false));
+            }
+        }
+    }
+}
+
+fn update_coins(
+    mut ev_coins: EventReader<CoinsDiff>,
+    mut data: Query<&mut PlayerData, With<MySelf>>,
+) {
+    for diff in ev_coins.iter() {
+        let (mut player_data) = data.single_mut().expect("Can't find player data.");
+        player_data.coins = (player_data.coins as i16 - diff.0 as i16) as u16;
     }
 }

@@ -99,7 +99,7 @@ pub struct PlayerData {
     name: String,
     hand: Vec<Card>,
     board: Vec<Card>,
-    gold: u16,
+    coins: u16,
     hp: u16,
     shop_level: u16,
     // hero,
@@ -112,7 +112,7 @@ impl Default for PlayerData {
             name: "J1".to_string(),
             hand: vec![],
             board: vec![],
-            gold: 3,
+            coins: 3,
             hp: 25,
             shop_level: 1,
         }
