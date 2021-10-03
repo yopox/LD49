@@ -1,9 +1,9 @@
 use bevy::ecs::system::EntityCommands;
 use bevy::prelude::*;
 
-use crate::font::*;
-use crate::{MainCamera, WIDTH, HEIGHT, Handles};
+use crate::{Handles, HEIGHT, MainCamera, WIDTH};
 use crate::abs::EffectTrigger;
+use crate::font::*;
 use crate::util::{cursor_pos, overlap};
 
 pub const CARD_SCALE: f32 = 0.4;
@@ -11,60 +11,74 @@ pub const CARD_WIDTH: f32 = 270. * CARD_SCALE;
 pub const CARD_HEIGHT: f32 = 420. * CARD_SCALE;
 
 #[derive(Copy, Clone)]
-pub enum Cards {
+pub enum CardsID {
     MUSH_8,
     MERCH_8,
     SPID_8,
     ROB_8,
 }
 
-pub struct CardComponent {
-    pub card_id: Cards,
+#[derive(Copy, Clone)]
+pub struct Card {
+    pub card_id: CardsID,
+    pub hp: u16,
+    pub at: u16,
 }
 
-impl Cards {
+impl CardsID {
     pub fn name(&self) -> &'static str {
         match self {
-            Cards::MUSH_8 => "Titanicus",
-            Cards::MERCH_8 => "Tujilus",
-            Cards::SPID_8 => "Australian black widow",
-            Cards::ROB_8 => "SkyBot",
+            CardsID::MUSH_8 => "Titanicus",
+            CardsID::MERCH_8 => "Tujilus",
+            CardsID::SPID_8 => "Australian black widow",
+            CardsID::ROB_8 => "SkyBot",
         }
     }
 
     pub fn ability(&self) -> &'static str {
         match self {
-            Cards::MUSH_8 => "Gigantism",
-            Cards::MERCH_8 => "Dexterity",
-            Cards::SPID_8 => "Cannibalism",
-            Cards::ROB_8 => "Download",
+            CardsID::MUSH_8 => "Gigantism",
+            CardsID::MERCH_8 => "Dexterity",
+            CardsID::SPID_8 => "Cannibalism",
+            CardsID::ROB_8 => "Download",
         }
     }
 
     pub fn description(&self) -> &'static str {
         match self {
-            Cards::MUSH_8 => "Gets +1 ATK.",
-            Cards::MERCH_8 => "Attacks another enemy once.",
-            Cards::SPID_8 => "Eats the lowest rank spider\nof the board, and gains\nits stats.",
-            Cards::ROB_8 => "Steals +1 HP and +1 ATK\nfrom each allied robot.",
+            CardsID::MUSH_8 => "Gets +1 ATK.",
+            CardsID::MERCH_8 => "Attacks another enemy once.",
+            CardsID::SPID_8 => "Eats the lowest rank spider\nof the board, and gains\nits stats.",
+            CardsID::ROB_8 => "Steals +1 HP and +1 ATK\nfrom each allied robot.",
         }
     }
 
     pub fn trigger(&self) -> EffectTrigger {
         match self {
-            Cards::MUSH_8 => EffectTrigger::KILL,
-            Cards::MERCH_8 => EffectTrigger::SURVIVED,
-            Cards::SPID_8 => EffectTrigger::TURN,
-            Cards::ROB_8 => EffectTrigger::TURN,
+            CardsID::MUSH_8 => EffectTrigger::KILL,
+            CardsID::MERCH_8 => EffectTrigger::SURVIVED,
+            CardsID::SPID_8 => EffectTrigger::TURN,
+            CardsID::ROB_8 => EffectTrigger::TURN,
         }
     }
 
     pub fn handle(&self, handles: &Res<Handles>) -> Handle<ColorMaterial> {
         match self {
-            Cards::MUSH_8 => handles.mush_8.clone(),
-            Cards::MERCH_8 => handles.merch_8.clone(),
-            Cards::SPID_8 => handles.spid_8.clone(),
-            Cards::ROB_8 => handles.rob_8.clone(),
+            CardsID::MUSH_8 => handles.mush_8.clone(),
+            CardsID::MERCH_8 => handles.merch_8.clone(),
+            CardsID::SPID_8 => handles.spid_8.clone(),
+            CardsID::ROB_8 => handles.rob_8.clone(),
+        }
+    }
+}
+
+impl From<CardsID> for Card {
+    fn from(id: CardsID) -> Self {
+        match id {
+            CardsID::MUSH_8 => Card { card_id: id, at: 8, hp: 6 },
+            CardsID::MERCH_8 => Card { card_id: id, at: 5, hp: 9 },
+            CardsID::SPID_8 => Card { card_id: id, at: 4, hp: 4 },
+            CardsID::ROB_8 => Card { card_id: id, at: 3, hp: 3 },
         }
     }
 }
@@ -128,11 +142,11 @@ fn update_popup(
     windows: Res<Windows>,
     mut queries: QuerySet<(
         Query<&Transform, With<MainCamera>>,
-        Query<(&CardComponent, &Transform)>,
+        Query<(&Card, &Transform)>,
         Query<(&mut Style, &mut Text, &mut Visible), With<Popup>>,
     )>,
 ) {
-    let mut hover: Option<(Cards, Transform)> = None;
+    let mut hover: Option<(CardsID, Transform)> = None;
 
     // Get cursor position
     let window = windows.get_primary().unwrap();

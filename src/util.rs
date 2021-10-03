@@ -1,6 +1,6 @@
 use bevy::ecs::system::EntityCommands;
 use bevy::prelude::*;
-use crate::card::{CARD_SCALE, CardComponent, Cards};
+use crate::card::{CARD_SCALE, Card, CardsID};
 use crate::Handles;
 
 /// Returns coordinates for the sprite to be drawn at (`x`; `y`), with a given `z` index.

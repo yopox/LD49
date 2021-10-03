@@ -1,3 +1,10 @@
+use bevy::prelude::*;
+
+use crate::card::{Card, CardPlugin, CardsID};
+use crate::shop::ShopPlugin;
+use crate::title::TitlePlugin;
+use crate::ui::{AnimationPlugin, DragAndDropPlugin};
+
 mod shop;
 mod abs;
 mod font;
@@ -5,12 +12,6 @@ mod card;
 mod util;
 mod title;
 mod ui;
-
-use bevy::prelude::*;
-use crate::shop::ShopPlugin;
-use crate::card::CardPlugin;
-use crate::title::TitlePlugin;
-use crate::ui::{AnimationPlugin, DragAndDropPlugin};
 
 pub const WIDTH: f32 = 1280.;
 pub const HEIGHT: f32 = 720.;
@@ -30,6 +31,7 @@ pub struct Handles {
 
     pub shop_bg: Handle<ColorMaterial>,
 }
+
 struct MainCamera;
 
 fn main() {
@@ -50,6 +52,7 @@ fn main() {
         .add_plugin(TitlePlugin)
         .add_startup_system(setup.system())
         .add_startup_system(crate::font::load_fonts.system())
+        .add_startup_system(setup_data.system())
         .run();
 }
 
@@ -79,4 +82,52 @@ fn setup(
         .spawn_bundle(camera)
         .insert(MainCamera);
     commands.spawn_bundle(UiCameraBundle::default());
+}
+
+pub struct MySelf;
+
+pub struct PlayerData {
+    id: u16,
+    name: String,
+    hand: Vec<Card>,
+    board: Vec<Card>,
+    gold: u16,
+    // hero,
+}
+
+pub struct GlobalData {
+    // Nothing for now
+}
+
+fn setup_data(
+    mut commands: Commands,
+) {
+    commands
+        .spawn()
+        .insert(GlobalData {});
+
+    commands.spawn().insert(
+        PlayerData {
+            id: 0,
+            name: "H".to_string(),
+            hand: vec![
+                Card::from(CardsID::SPID_8),
+            ],
+            board: vec![
+                Card::from(CardsID::ROB_8),
+                Card::from(CardsID::MUSH_8),
+            ],
+            gold: 10,
+        }).insert(MySelf);
+    commands.spawn().insert(
+        PlayerData {
+            id: 1,
+            name: "L".to_string(),
+            hand: vec![],
+            board: vec![
+                Card::from(CardsID::SPID_8),
+                Card::from(CardsID::MERCH_8),
+            ],
+            gold: 10,
+        });
 }

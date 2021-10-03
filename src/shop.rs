@@ -1,7 +1,7 @@
 use bevy::math::{vec2, vec3};
 use bevy::prelude::*;
 
-use crate::{AppState, HEIGHT, WIDTH};
+use crate::{AppState, HEIGHT, MySelf, PlayerData, WIDTH};
 use crate::card::*;
 use crate::Handles;
 use crate::ui::{Draggable, Dropped, easing, TranslationAnimation};
@@ -56,20 +56,29 @@ impl Plugin for ShopPlugin {
 fn init(
     mut commands: Commands,
     handles: Res<Handles>,
+    query: Query<&PlayerData, With<MySelf>>,
 ) {
-    add_card(Cards::SPID_8,
-             ShopSlot { row: ShopSlots::HAND, id: 0 },
-             &mut commands, &handles);
+    let player_data = query.single().expect(
+        "There should be one and only one player with myself"
+    );
 
-    add_card(Cards::ROB_8,
-             ShopSlot { row: ShopSlots::BOARD, id: 0 },
-             &mut commands, &handles);
+    for (i, &card) in player_data.board.iter().enumerate() {
+        add_card(card,
+                 ShopSlot { row: ShopSlots::BOARD, id: i as u8 },
+                 &mut commands, &handles);
+    }
 
-    add_card(Cards::MERCH_8,
+    for (i, &card) in player_data.hand.iter().enumerate() {
+        add_card(card,
+                 ShopSlot { row: ShopSlots::HAND, id: i as u8 },
+                 &mut commands, &handles);
+    }
+
+    add_card(Card::from(CardsID::MERCH_8),
              ShopSlot { row: ShopSlots::SHOP, id: 0 },
              &mut commands, &handles);
 
-    add_card(Cards::MUSH_8,
+    add_card(Card::from(CardsID::MUSH_8),
              ShopSlot { row: ShopSlots::SHOP, id: 1 },
              &mut commands, &handles);
 
@@ -83,14 +92,14 @@ fn init(
     });
 }
 
-fn add_card(id: Cards, slot: ShopSlot, commands: &mut Commands, handles: &Res<Handles>) {
+fn add_card(card: Card, slot: ShopSlot, commands: &mut Commands, handles: &Res<Handles>) {
     commands
         .spawn_bundle(SpriteBundle {
-            material: id.handle(&handles),
+            material: card.card_id.handle(&handles),
             transform: card_transform(slot.x(), slot.y()),
             ..Default::default()
         })
-        .insert(CardComponent { card_id: id })
+        .insert(card)
         .insert(Draggable {
             size: vec2(CARD_WIDTH / 2., CARD_HEIGHT / 2.),
             pos: vec3(slot.x(), slot.y(), 0.0),
@@ -102,7 +111,7 @@ fn add_card(id: Cards, slot: ShopSlot, commands: &mut Commands, handles: &Res<Ha
 fn drop_card(
     mut commands: Commands,
     time: Res<Time>,
-    query: Query<(Entity, &ShopSlot, &Dropped), With<CardComponent>>,
+    query: Query<(Entity, &ShopSlot, &Dropped), With<Card>>,
 ) {
     for (e, slot, dropped) in query.iter() {
         commands.entity(e)
