@@ -1,12 +1,11 @@
-use bevy::math::{vec2, vec3};
+use bevy::ecs::component::Component;
+use bevy::math::vec3;
 use bevy::prelude::*;
 use derive_more::Display;
-use rand::Rng;
 
-use crate::{AppState, GlobalData, Handles, HEIGHT, MySelf, PlayerData, WIDTH};
+use crate::{AppState, GlobalData, Handles, HEIGHT, MySelf, PlayerData};
 use crate::abs::{CombatEvents, simulate_combat};
 use crate::card::{Card, CARD_HEIGHT};
-use crate::fight::FightSlotHeight::FightingMySelf;
 use crate::ui::{easing, TranslationAnimation};
 use crate::util::card_transform;
 
@@ -33,6 +32,17 @@ impl Plugin for FightPlugin {
                     .with_system(stat_change_producer.system())
                     .with_system(remove_card_producer.system())
                     .with_system(apply_effect_producer.system())
+            )
+            .add_system_set(
+                SystemSet::on_exit(AppState::Fight)
+                    .with_system(on_exit.system().label("on-exit"))
+            )
+            .add_system_set(
+                SystemSet::on_exit(AppState::Fight)
+                    .before("on-exit").label("cleanup")
+                    .with_system(cleanup_system::<MySelf>.system())
+                    .with_system(cleanup_system::<MyFoe>.system())
+                    .with_system(cleanup_system::<FightSlot>.system())
             )
         ;
     }
@@ -101,21 +111,21 @@ fn setup_fight(
     mut commands: Commands,
     handles: Res<Handles>,
     time: Res<Time>,
+    mut global_data: ResMut<GlobalData>,
     mut queries: QuerySet<(
-        Query<(Entity, &PlayerData), With<MySelf>>,
-        Query<(Entity, &PlayerData), With<MyFoe>>,
-        Query<&mut GlobalData>,
+        Query<(Entity, &mut PlayerData), With<MySelf>>,
+        Query<(Entity, &mut PlayerData), With<MyFoe>>,
     )>,
 ) {
-    let (e_myself, myself) = queries.q0().single().expect("There should be only one player tagged MySelf");
-    let (e_my_foe, my_foe) = queries.q1().single().expect("There should be only one player tagged MyFoe");
+    let (e_myself, mut myself) = queries.q0_mut().single_mut().expect("There should be only one player tagged MySelf");
+    let myself_cloned = myself.clone();
+    let myself_cloned_again = myself.clone();
 
-    let my_id = myself.id;
+    let (e_my_foe, mut my_foe) = queries.q1_mut().single_mut().expect("There should be only one player tagged MyFoe");
+    let my_foe_cloned = my_foe.clone();
+    let my_foe_cloned_again = my_foe.clone();
 
-    let mut myself_cloned = myself.clone();
-    let mut my_foe_cloned = my_foe.clone();
-    let mut myself_cloned_again = myself.clone();
-    let mut my_foe_cloned_again = my_foe.clone();
+    let my_id = myself_cloned.id;
 
     let mut index = 0u8;
     for &card in &myself_cloned.board {
@@ -130,21 +140,6 @@ fn setup_fight(
                  &mut commands, &handles);
         index += 1;
     }
-
-    commands.entity(e_myself)
-        .remove::<MySelf>()
-        .insert(FightBackup { who: FightPlayers::MySelf });
-    commands.entity(e_my_foe)
-        .remove::<MyFoe>()
-        .insert(FightBackup { who: FightPlayers::MyFoe });
-    commands.spawn()
-        .insert(myself_cloned)
-        .insert(MySelf);
-    commands.spawn()
-        .insert(my_foe_cloned)
-        .insert(MyFoe);
-
-    let mut global_data = queries.q2_mut().single_mut().expect("There should be only one global data.");
 
     let events = simulate_combat(myself_cloned_again, my_foe_cloned_again, &mut global_data.rng);
 
@@ -185,6 +180,18 @@ fn setup_fight(
 
     stack.reverse();
 
+    commands.entity(e_myself)
+        .remove::<MySelf>()
+        .insert(FightBackup { who: FightPlayers::MySelf });
+    commands.entity(e_my_foe)
+        .remove::<MyFoe>()
+        .insert(FightBackup { who: FightPlayers::MyFoe });
+    commands.spawn()
+        .insert(myself_cloned)
+        .insert(MySelf);
+    commands.spawn()
+        .insert(my_foe_cloned)
+        .insert(MyFoe);
     commands.spawn().insert(FightEventsStack { stack });
     commands.spawn().insert(WaitUntil(time.seconds_since_startup()));
 }
@@ -262,19 +269,15 @@ fn event_dispatcher(
         if let Some(e) = stack.stack.pop() {
             match e {
                 FightEvents::Translation(t) => {
-                    println!("Dispatching a translation from {}.{} to {}.{}", t.from.who, t.from.index, t.to.who, t.to.index);
                     ew_translation.send(t);
                 }
                 FightEvents::RemoveCard(r) => {
-                    println!("Dispatching a remove event");
                     ew_remove_card.send(r);
                 }
                 FightEvents::StatsChange(s) => {
-                    println!("Dispatching a stat change to {}.{}", s.slot.who, s.slot.index);
                     ew_stats_change.send(s);
                 }
                 FightEvents::ApplyEffect(a) => {
-                    println!("Dispatching an apply_effect");
                     ew_apply_effect.send(a);
                 }
             }
@@ -290,10 +293,9 @@ fn translation_animation_producer(
     query: Query<(Entity, &FightSlot)>,
     time: Res<Time>,
 ) {
-    for (Translation { from, to }) in er.iter() {
+    for Translation { from, to } in er.iter() {
         for (e, mut slot) in query.iter() {
             if slot == from {
-                println!("Making a translation from {}.{} to {}.{}", from.who, from.index, to.who, to.index);
                 let duration = 1.3;
                 let t0 = time.seconds_since_startup();
                 commands.entity(e)
@@ -364,7 +366,6 @@ fn remove_card_producer(
                 let start = slot.clone();
                 slot.who = start.who;
                 slot.index = start.index - removed_before as u8;
-                println!("Making a translation from {}.{} to {}.{}", start.who, start.index, slot.who, slot.index);
                 commands.entity(e)
                     .insert(translate_slots(t0, start, *slot, 1.3));
             }
@@ -382,5 +383,26 @@ fn apply_effect_producer(
     if er.iter().count() != 0 {
         commands.spawn().insert(WaitUntil(time.seconds_since_startup() + 0.5));
         println!("Applying some effects");
+    }
+}
+
+fn cleanup_system<T: Component>(
+    mut commands: Commands,
+    q: Query<Entity, With<T>>,
+) {
+    for e in q.iter() {
+        commands.entity(e).despawn_recursive();
+    }
+}
+
+fn on_exit(
+    query: Query<(Entity, &FightBackup)>,
+    mut commands: Commands,
+) {
+    for (e, &FightBackup { who }) in query.iter() {
+        match who {
+            FightPlayers::MySelf => commands.entity(e).insert(MySelf),
+            FightPlayers::MyFoe => commands.entity(e).insert(MyFoe),
+        };
     }
 }
