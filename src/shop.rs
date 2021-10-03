@@ -3,11 +3,15 @@ use bevy::prelude::*;
 
 use crate::{AppState, HEIGHT, MySelf, PlayerData, WIDTH};
 use crate::card::*;
+use crate::font::TextStyles;
+use crate::GlobalData;
 use crate::Handles;
 use crate::ui::{animate, animate_switch, animate_fast, Draggable, Dragged, DROP_BORDER, Dropped, easing, TranslationAnimation};
 use crate::util::{card_transform, overlap, Slot};
 
 pub struct ShopPlugin;
+pub struct Coins;
+pub struct Level;
 
 /// Cards are in one of these spots
 #[derive(PartialEq, Clone, Copy, Debug)]
@@ -55,13 +59,16 @@ impl Plugin for ShopPlugin {
                 SystemSet::on_update(AppState::Shop)
                     .with_system(drop_card.system().after("drag:end"))
                     .with_system(highlight_slot.system().after("drag:update"))
+                    .with_system(update_ui.system())
             );
     }
 }
 
 fn init(
     mut commands: Commands,
+    global_data: Res<GlobalData>,
     handles: Res<Handles>,
+    text_styles: Res<TextStyles>,
     query: Query<&PlayerData, With<MySelf>>,
 ) {
     let player_data = query.single().expect(
@@ -118,6 +125,61 @@ fn init(
             ..Default::default()
         })
         .insert(SlotBorder);
+
+    // UI
+    commands
+        .spawn_bundle(TextBundle {
+            style: Style {
+                align_self: AlignSelf::FlexEnd,
+                position_type: PositionType::Absolute,
+                position: Rect {
+                    bottom: Val::Px(15.0),
+                    left: Val::Px(15.0),
+                    ..Default::default()
+                },
+                ..Default::default()
+            },
+            text: Text::with_section(
+                "COINS: 3".to_string(),
+                text_styles.love_bug_small.clone(),
+                Default::default()
+            ),
+            transform: Default::default(),
+            ..Default::default()
+        })
+        .insert(Coins);
+
+    commands
+        .spawn_bundle(TextBundle {
+            style: Style {
+                align_self: AlignSelf::FlexEnd,
+                position_type: PositionType::Absolute,
+                position: Rect {
+                    top: Val::Px(15.0),
+                    left: Val::Px(15.0),
+                    ..Default::default()
+                },
+                ..Default::default()
+            },
+            text: Text {
+                sections: vec![
+                    TextSection {
+                        value: format!("TURN {}\n", global_data.turn),
+                        style: text_styles.love_bug_small.clone(),
+                        ..Default::default()
+                    },
+                    TextSection {
+                        value: "".to_string(),
+                        style: text_styles.love_bug_small.clone(),
+                        ..Default::default()
+                    }
+                ],
+              ..Default::default()
+            },
+            transform: Default::default(),
+            ..Default::default()
+        })
+        .insert(Level);
 }
 
 fn add_card(card: Card, slot: ShopSlot, commands: &mut Commands, handles: &Res<Handles>) {
@@ -135,6 +197,24 @@ fn add_card(card: Card, slot: ShopSlot, commands: &mut Commands, handles: &Res<H
     ;
 }
 
+fn update_ui(
+    mut queries: QuerySet<(
+        Query<&PlayerData, With<MySelf>>,
+        Query<&mut Text, With<Coins>>,
+        Query<&mut Text, With<Level>>,
+    )>,
+) {
+    let data = queries.q0().single().expect("No data for the player");
+    let coins = data.gold;
+    let level = data.shop_level;
+
+    let mut coins_text = queries.q1_mut().single_mut().expect("Coins text not found.");
+    coins_text.sections[0].value = format!("COINS: {}", coins);
+
+    let mut level_text = queries.q2_mut().single_mut().expect("Level text not found.");
+    level_text.sections[1].value = format!("SHOP LEVEL {}", level);
+}
+
 fn highlight_slot(
     mut commands: Commands,
     mut queries: QuerySet<(
@@ -144,11 +224,17 @@ fn highlight_slot(
     )>,
 ) {
     let dragged_card = queries.q0().single();
-    if !dragged_card.is_ok() { return; }
+    if !dragged_card.is_ok() {
+        // No card is dragged => hide the border
+        let (_, mut visible) = queries.q2_mut().single_mut().unwrap();
+        visible.is_visible = false;
+        return;
+    }
     let (transform, origin_slot) = dragged_card.unwrap();
     let translation = transform.translation.clone();
     let origin_slot = origin_slot.clone();
 
+    // Update hovered slot
     let mut hovered_slot: Option<ShopSlot> = None;
     for (e, slot) in queries.q1_mut().iter_mut() {
         if overlap(translation, vec3(slot.x(), slot.y(), 0.),
@@ -160,7 +246,7 @@ fn highlight_slot(
         }
     }
 
-    // Check if the card can be dropped
+    // Check if the card can be dropped on this row
     if hovered_slot.is_none() {
         let (_, mut visible) = queries.q2_mut().single_mut().unwrap();
         visible.is_visible = false;
@@ -173,6 +259,7 @@ fn highlight_slot(
         ShopSlots::HAND => hovered_slot.row == ShopSlots::BOARD || hovered_slot.row == ShopSlots::HAND,
     };
 
+    // Update the border accordingly
     let (mut border_transform, mut visible) = queries.q2_mut().single_mut().unwrap();
     if possible {
         visible.is_visible = true;
@@ -189,7 +276,6 @@ fn drop_card(
     time: Res<Time>,
     mut queries: QuerySet<(
         Query<(Entity, &ShopSlot), With<SlotHovered>>,
-        Query<&mut Visible, With<SlotBorder>>,
         Query<(Entity, &Transform, &mut ShopSlot), With<Card>>,
     )>,
 ) {
@@ -205,7 +291,8 @@ fn drop_card(
 
         match hovered_slot {
             None => {
-                for (e, transform, mut slot) in queries.q2_mut().iter_mut() {
+                // Find the dragged card and send it back to its slot
+                for (e, transform, mut slot) in queries.q1_mut().iter_mut() {
                     if dropped.0 == e {
                         // println!("No slots hovered. Fallback to {:?} {}", &slot.row, &slot.id);
                         commands
@@ -215,12 +302,11 @@ fn drop_card(
                 }
             }
             Some(destination_slot) => {
-                // Hide border
-                queries.q1_mut().single_mut().unwrap().is_visible = false;
-
+                // Get the slot where the card is dragged from
+                // Check if there is a card on the destination
                 let mut origin_slot: Option<ShopSlot> = None;
                 let mut existing_entity: Option<Entity> = None;
-                for (e, _, slot) in queries.q2_mut().iter_mut() {
+                for (e, _, slot) in queries.q1_mut().iter_mut() {
                     if dropped.0 == e {
                         origin_slot = Some(slot.clone());
                     } else if destination_slot == *slot {
@@ -239,7 +325,8 @@ fn drop_card(
                 };
                 // println!["Move: {:?} {} -> {:?} {} : {}", &origin_slot.row, &origin_slot.id, &destination_slot.row, &destination_slot.id, legal_move];
 
-                for (e, transform, mut slot) in queries.q2_mut().iter_mut() {
+                // Move the dragged card to its new slot (or old slot if the move isn't legal)
+                for (e, transform, mut slot) in queries.q1_mut().iter_mut() {
                     if dropped.0 == e {
                         if legal_move {
                             slot.row = destination_slot.row;
@@ -255,9 +342,11 @@ fn drop_card(
                     }
                 }
 
-                if legal_move {
+                // Move the card already on the destination to the origin slot
+                // If we sell, ignore existing_entity
+                if legal_move && destination_slot.row != ShopSlots::SHOP {
                     if let Some(existing_entity) = existing_entity {
-                        for (e, transform, mut slot) in queries.q2_mut().iter_mut() {
+                        for (e, transform, mut slot) in queries.q1_mut().iter_mut() {
                             if existing_entity == e {
                                 slot.row = origin_slot.row;
                                 slot.id = origin_slot.id;

@@ -100,22 +100,38 @@ pub struct PlayerData {
     hand: Vec<Card>,
     board: Vec<Card>,
     gold: u16,
+    hp: u16,
+    shop_level: u16,
     // hero,
+}
+
+impl Default for PlayerData {
+    fn default() -> Self {
+        PlayerData {
+            id: 0,
+            name: "J1".to_string(),
+            hand: vec![],
+            board: vec![],
+            gold: 3,
+            hp: 25,
+            shop_level: 1,
+        }
+    }
 }
 
 pub struct GlobalData {
     rng: StdRng,
+    turn: u16,
     // Nothing for now
 }
 
 fn setup_data(
     mut commands: Commands,
 ) {
-    commands
-        .spawn()
-        .insert(GlobalData {
-            rng: StdRng::seed_from_u64(0u64),
-        });
+    commands.insert_resource(GlobalData {
+        rng: StdRng::seed_from_u64(0u64),
+        turn: 0,
+    });
 
     commands.spawn().insert(
         PlayerData {
@@ -128,17 +144,16 @@ fn setup_data(
                 Card::from(CardsID::ROB_8),
                 Card::from(CardsID::MUSH_8),
             ],
-            gold: 10,
+            ..Default::default()
         }).insert(MySelf);
     commands.spawn().insert(
         PlayerData {
             id: 1,
             name: "L".to_string(),
-            hand: vec![],
             board: vec![
                 Card::from(CardsID::SPID_8),
                 Card::from(CardsID::MERCH_8),
             ],
-            gold: 10,
+            ..Default::default()
         }).insert(MyFoe);
 }
