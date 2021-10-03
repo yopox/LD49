@@ -129,14 +129,14 @@ pub struct Draggable {
 
 pub struct Dragged;
 pub struct Dropped(pub Entity);
-pub const DROP_BORDER: f32 = 8.;
+pub const DROP_BORDER: f32 = 10.;
 
 impl Plugin for DragAndDropPlugin {
     fn build(&self, app: &mut AppBuilder) {
         app
             .add_event::<Dropped>()
             .add_system(drag_update.system().label("drag:update"))
-            .add_system(drop_update.system().label("drag:end"))
+            .add_system(drop_update.system().label("drag:end").after("drag:update"))
             .add_system(begin_drag.system().label("drag:begin"))
         ;
     }

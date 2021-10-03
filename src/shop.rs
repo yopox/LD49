@@ -53,8 +53,8 @@ impl Plugin for ShopPlugin {
             )
             .add_system_set(
                 SystemSet::on_update(AppState::Shop)
-                    .with_system(drop_card.system())
-                    .with_system(highlight_slot.system())
+                    .with_system(drop_card.system().after("drag:end"))
+                    .with_system(highlight_slot.system().after("drag:update"))
             );
     }
 }
@@ -170,7 +170,7 @@ fn highlight_slot(
     let possible = match origin_slot.row {
         ShopSlots::SHOP => hovered_slot.row == ShopSlots::HAND,
         ShopSlots::BOARD => hovered_slot.row == ShopSlots::BOARD || hovered_slot.row == ShopSlots::SHOP,
-        ShopSlots::HAND => hovered_slot.row == ShopSlots::BOARD,
+        ShopSlots::HAND => hovered_slot.row == ShopSlots::BOARD || hovered_slot.row == ShopSlots::HAND,
     };
 
     let (mut border_transform, mut visible) = queries.q2_mut().single_mut().unwrap();
@@ -233,7 +233,7 @@ fn drop_card(
 
                 // TODO: Illegal to buy if the player has not enough gold
                 let legal_move: bool = match origin_slot.row {
-                    ShopSlots::HAND => destination_slot.row == ShopSlots::BOARD && existing_entity.is_none(),
+                    ShopSlots::HAND => destination_slot.row == ShopSlots::HAND || destination_slot.row == ShopSlots::BOARD && existing_entity.is_none(),
                     ShopSlots::BOARD => destination_slot.row == ShopSlots::BOARD || destination_slot.row == ShopSlots::SHOP,
                     ShopSlots::SHOP => destination_slot.row == ShopSlots::HAND && existing_entity.is_none(),
                 };
