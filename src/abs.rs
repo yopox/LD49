@@ -21,6 +21,7 @@ pub enum CombatEvents {
     StatsChange { player_id: u16, card_index: u8, hp: i32, at: i32 },
     ApplyAbility { card_index: u8, player_id: u16, ability: Abilities, card_id: u32 },
     GoldChange { player_id: u16, change: i32 },
+    PlayersAttack { att_id: u16, change_def_hp: i32 },
 }
 
 impl Display for CombatEvents {
@@ -31,6 +32,7 @@ impl Display for CombatEvents {
             CombatEvents::Death { player_id, card_index: card_id } => { write!(f, "Death of {}.{}", player_id, card_id) }
             CombatEvents::StatsChange { .. } => { write!(f, "Stats Change") }
             CombatEvents::ApplyAbility { .. } => { write!(f, "Effect") }
+            CombatEvents::PlayersAttack { att_id, change_def_hp } => { write!(f, "Player {} takes {} to their opponent", att_id, change_def_hp) }
         }
     }
 }
@@ -81,7 +83,7 @@ fn relu(i: i32) -> u16 {
 }
 
 #[inline]
-fn min2<T: PartialOrd>(x: T, y: T) -> T { if x < y { x } else { y }}
+fn min2<T: PartialOrd>(x: T, y: T) -> T { if x < y { x } else { y } }
 
 fn simulate_attack<T: Rng>(att_card_index: u8, att_hb: &mut PlayerData, def_hb: &mut PlayerData, rng: &mut T) -> Vec<CombatEvents> {
     let def_card_index = rng.gen_range(0..get_number_of_cards(def_hb)) as u8;
@@ -93,7 +95,7 @@ fn simulate_attack<T: Rng>(att_card_index: u8, att_hb: &mut PlayerData, def_hb: 
     let def_card_trigger = def_card.card_type.trigger();
 
     let def_post_hp = def_card.hp as i32 - att_card.at as i32;
-    events.push(CombatEvents::Attack { att_card_index, att_id: att_hb.id, def_card_index, change_def_hp: - (min2(def_card.hp, att_card.at) as i32) });
+    events.push(CombatEvents::Attack { att_card_index, att_id: att_hb.id, def_card_index, change_def_hp: -(min2(def_card.hp, att_card.at) as i32) });
 
     if def_post_hp <= 0 {
         // Dies
@@ -121,7 +123,7 @@ fn simulate_attack<T: Rng>(att_card_index: u8, att_hb: &mut PlayerData, def_hb: 
 
     // Counter-attack
     let att_post_hp = att_card.hp as i32 - def_card.at as i32;
-    events.push(CombatEvents::Attack { att_id: def_hb.id, def_card_index: att_card_index, att_card_index: def_card_index, change_def_hp: - (min2(att_card.hp, def_card.at) as i32)});
+    events.push(CombatEvents::Attack { att_id: def_hb.id, def_card_index: att_card_index, att_card_index: def_card_index, change_def_hp: -(min2(att_card.hp, def_card.at) as i32) });
 
     if att_post_hp <= 0 {
         // Dies
@@ -170,6 +172,13 @@ pub(crate) fn simulate_combat<T: Rng>(mut hb1: PlayerData, mut hb2: PlayerData, 
         next_cards_to_play[to_play as usize] = (next_cards_to_play[to_play as usize] + 1) % quotient;
         to_play = !to_play;
     }
+
+    let (winner, loser) = if hb1.board.is_empty() { (hb2, hb1) } else { (hb1, hb2) };
+    let change_def_hp = -min2(loser.hp as i32, winner.board.iter().map(|card| card.card_type.rank() as i32).sum());
+    events.push(CombatEvents::PlayersAttack {
+        att_id: winner.id,
+        change_def_hp,
+    });
 
     for e in &events {
         println!("{}", e);

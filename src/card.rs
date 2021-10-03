@@ -97,6 +97,15 @@ impl CardTypes {
         }
     }
 
+    pub fn rank(&self) -> u8 {
+        match self {
+            CardTypes::MUSH_8 => 4,
+            CardTypes::MERCH_8 => 4,
+            CardTypes::SPID_8 => 4,
+            CardTypes::ROB_8 => 4,
+        }
+    }
+
     pub fn trigger(&self) -> Triggers {
         match self {
             CardTypes::MUSH_8 => Triggers::Kill,

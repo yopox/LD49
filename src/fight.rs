@@ -18,6 +18,7 @@ impl Plugin for FightPlugin {
             .add_event::<RemoveCard>()
             .add_event::<StatsChange>()
             .add_event::<ApplyEffect>()
+            .add_event::<PlayersAttack>()
             .add_system_set(
                 SystemSet::on_enter(AppState::Fight)
                     .with_system(setup_fight.system().label("setup_fight"))
@@ -32,6 +33,7 @@ impl Plugin for FightPlugin {
                     .with_system(stat_change_producer.system())
                     .with_system(remove_card_producer.system())
                     .with_system(apply_effect_producer.system())
+                    .with_system(players_attack_producer.system())
             )
             .add_system_set(
                 SystemSet::on_exit(AppState::Fight)
@@ -169,7 +171,7 @@ fn setup_fight(
                 let slot = FightSlot { who: to_base_height(player), index: card_index };
                 stack.push(FightEvents::StatsChange(StatsChange { slot, at, hp }));
             }
-            CombatEvents::ApplyAbility { card_index, player_id , ability, card_id } => {
+            CombatEvents::ApplyAbility { card_index, player_id, ability, card_id } => {
                 let player = if player_id == my_id { FightPlayers::MySelf } else { FightPlayers::MyFoe };
                 let slot = FightSlot { who: to_base_height(player), index: card_index };
                 stack.push(FightEvents::ApplyEffect(ApplyEffect(slot)));
@@ -194,6 +196,16 @@ fn setup_fight(
                     my_foe_cloned.extra_coins = (my_foe_cloned.extra_coins as i32 + change) as u16;
                 }
             }
+            CombatEvents::PlayersAttack { att_id, change_def_hp } => {
+                let who = if att_id == my_id {
+                    myself_cloned.hp = (myself_cloned.hp as i32 + change_def_hp) as u16;
+                    FightPlayers::MySelf
+                } else {
+                    my_foe_cloned.hp = (my_foe_cloned.hp as i32 + change_def_hp) as u16;
+                    FightPlayers::MyFoe
+                };
+                stack.push(FightEvents::PlayersAttack(PlayersAttack { who, change: change_def_hp }))
+            }
         }
     }
 
@@ -201,10 +213,10 @@ fn setup_fight(
 
     commands.entity(e_myself)
         .remove::<MySelf>()
-        .insert(FightBackup {who: FightPlayers::MySelf});
+        .insert(FightBackup { who: FightPlayers::MySelf });
     commands.entity(e_my_foe)
         .remove::<MyFoe>()
-        .insert(FightBackup {who: FightPlayers::MyFoe});
+        .insert(FightBackup { who: FightPlayers::MyFoe });
     commands.spawn()
         .insert(myself_cloned)
         .insert(MySelf);
@@ -256,11 +268,17 @@ struct GoldChange {
     change: i32,
 }
 
+struct PlayersAttack {
+    who: FightPlayers,
+    change: i32,
+}
+
 enum FightEvents {
     Translation(Translation),
     RemoveCard(RemoveCard),
     StatsChange(StatsChange),
     ApplyEffect(ApplyEffect),
+    PlayersAttack(PlayersAttack),
 }
 
 fn event_dispatcher(
@@ -274,6 +292,7 @@ fn event_dispatcher(
     mut ew_remove_card: EventWriter<RemoveCard>,
     mut ew_stats_change: EventWriter<StatsChange>,
     mut ew_apply_effect: EventWriter<ApplyEffect>,
+    mut ew_players_attack: EventWriter<PlayersAttack>,
     mut app_state: ResMut<State<AppState>>,
 ) {
     let mut should_dispatch = false;
@@ -298,6 +317,9 @@ fn event_dispatcher(
                 }
                 FightEvents::ApplyEffect(a) => {
                     ew_apply_effect.send(a);
+                }
+                FightEvents::PlayersAttack(pa) => {
+                    ew_players_attack.send(pa);
                 }
             }
         } else {
@@ -402,6 +424,17 @@ fn apply_effect_producer(
     if er.iter().count() != 0 {
         commands.spawn().insert(WaitUntil(time.seconds_since_startup() + 0.5));
         println!("Applying some effects");
+    }
+}
+
+fn players_attack_producer(
+    mut er: EventReader<PlayersAttack>,
+    mut commands: Commands,
+    time: Res<Time>,
+) {
+    if er.iter().count() != 0 {
+        commands.spawn().insert(WaitUntil(time.seconds_since_startup() + 0.5));
+        println!("PlayersAttack ... ");
     }
 }
 
