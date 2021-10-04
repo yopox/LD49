@@ -1,3 +1,4 @@
+use bevy::ecs::component::Component;
 use bevy::ecs::system::EntityCommands;
 use bevy::prelude::*;
 use crate::card::{CARD_SCALE, Card, CardTypes};
@@ -47,4 +48,13 @@ pub fn card_transform(x: f32, y: f32) -> Transform {
 pub trait Slot {
     fn x(&self) -> f32;
     fn y(&self) -> f32;
+}
+
+pub fn cleanup_system<T: Component>(
+    mut commands: Commands,
+    q: Query<Entity, With<T>>,
+) {
+    for e in q.iter() {
+        commands.entity(e).despawn_recursive();
+    }
 }

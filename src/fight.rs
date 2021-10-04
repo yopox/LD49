@@ -1,4 +1,3 @@
-use bevy::ecs::component::Component;
 use bevy::math::vec3;
 use bevy::prelude::*;
 use derive_more::Display;
@@ -6,8 +5,8 @@ use derive_more::Display;
 use crate::{AppState, GlobalData, Handles, HEIGHT, MySelf, PlayerData};
 use crate::abs::{CombatEvents, simulate_combat};
 use crate::card::{Abilities, Card, CARD_HEIGHT};
-use crate::ui::{easing, TranslationAnimation};
-use crate::util::card_transform;
+use crate::ui::{easing, StateBackground, TranslationAnimation};
+use crate::util::{card_transform, cleanup_system};
 
 pub struct FightPlugin;
 
@@ -45,6 +44,8 @@ impl Plugin for FightPlugin {
                     .with_system(cleanup_system::<MySelf>.system())
                     .with_system(cleanup_system::<MyFoe>.system())
                     .with_system(cleanup_system::<FightSlot>.system())
+                    .with_system(cleanup_system::<FightEventsStack>.system())
+                    .with_system(cleanup_system::<StateBackground>.system())
             )
         ;
     }
@@ -435,15 +436,6 @@ fn players_attack_producer(
     if er.iter().count() != 0 {
         commands.spawn().insert(WaitUntil(time.seconds_since_startup() + 0.5));
         println!("PlayersAttack ... ");
-    }
-}
-
-fn cleanup_system<T: Component>(
-    mut commands: Commands,
-    q: Query<Entity, With<T>>,
-) {
-    for e in q.iter() {
-        commands.entity(e).despawn_recursive();
     }
 }
 

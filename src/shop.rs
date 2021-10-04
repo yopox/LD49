@@ -7,8 +7,8 @@ use crate::card::*;
 use crate::font::TextStyles;
 use crate::GlobalData;
 use crate::Handles;
-use crate::ui::{animate, animate_switch, animate_fast, Draggable, Dragged, DROP_BORDER, Dropped, easing, TranslationAnimation, TransitionOver};
-use crate::util::{card_transform, overlap, Slot, Z_BACKGROUND, Z_BOB};
+use crate::ui::{animate, animate_switch, animate_fast, Draggable, Dragged, DROP_BORDER, Dropped, easing, TranslationAnimation, TransitionOver, StateBackground};
+use crate::util::{card_transform, cleanup_system, overlap, Slot, Z_BACKGROUND, Z_BOB};
 
 pub struct ShopPlugin;
 pub struct Coins;
@@ -55,6 +55,7 @@ struct SlotHovered;
 struct Sold;
 struct CoinsDiff(i8, bool); // (gained coins ; can overflow)
 struct CoinLimit(u16);
+struct BeganShop(f64);
 const MIN_COINS: u16 = 3;
 
 struct ShopCosts {
@@ -83,20 +84,41 @@ impl Plugin for ShopPlugin {
             .add_event::<CoinsDiff>()
             .add_system_set(
                 SystemSet::on_enter(AppState::Shop)
-                    .with_system(init.system())
+                    .with_system(init.system().label("shop:init"))
             )
             .add_system_set(
                 SystemSet::on_update(AppState::Shop)
+                    .after("shop:init")
                     .with_system(drop_card.system().label("drop").after("drag:end"))
                     .with_system(highlight_slot.system().after("drag:update"))
                     .with_system(update_ui.system())
                     .with_system(sell_card.system().after("drop"))
                     .with_system(update_coins.system())
-            );
+            )
+            .add_system_set(
+                SystemSet::on_exit(AppState::Shop)
+                    .label("on_exit")
+                    .with_system(on_exit.system())
+            )
+            .add_system_set(
+                SystemSet::on_exit(AppState::Shop)
+                    .after("on_exit")
+                    .with_system(cleanup_system::<ShopSlot>.system())
+                    .with_system(cleanup_system::<SlotBorder>.system())
+                    .with_system(cleanup_system::<Bob>.system())
+                    .with_system(cleanup_system::<ShopCosts>.system())
+                    .with_system(cleanup_system::<CoinLimit>.system())
+                    .with_system(cleanup_system::<Level>.system())
+                    .with_system(cleanup_system::<Coins>.system())
+                    .with_system(cleanup_system::<BeganShop>.system())
+                    .with_system(cleanup_system::<StateBackground>.system())
+            )
+        ;
     }
 }
 
 fn init(
+    time: Res<Time>,
     mut commands: Commands,
     mut global_data: ResMut<GlobalData>,
     handles: Res<Handles>,
@@ -155,21 +177,7 @@ fn init(
             ..Default::default()
         },
         ..Default::default()
-    });
-
-    // Shopkeeper
-    let bob_slot = ShopSlot { row: ShopSlots::SELL, id: 0 };
-    commands
-        .spawn_bundle(SpriteBundle {
-            material: handles.shop_bob.clone(),
-            transform: Transform {
-                translation: Vec3::new(bob_slot.x(), bob_slot.y(), Z_BOB),
-                scale: Vec3::new(CARD_SCALE, CARD_SCALE, 1.),
-                ..Default::default()
-            },
-            ..Default::default()
-        })
-        .insert(Bob);
+    }).insert(StateBackground);
 
     // Slot border
     commands
@@ -237,6 +245,31 @@ fn init(
             ..Default::default()
         })
         .insert(Level);
+
+    commands.spawn_bundle(TextBundle {
+        style: Style {
+            // align_self: AlignSelf::FlexEnd,
+            position_type: PositionType::Absolute,
+            position: Rect {
+                top: Val::Px(15.0),
+                right: Val::Px(15.0),
+                ..Default::default()
+            },
+            ..Default::default()
+        },
+        text: Text {
+            sections: vec![
+                TextSection {
+                    value: format!("REMAINING TIME 60s\n"),
+                    style: text_styles.love_bug_small.clone(),
+                    ..Default::default()
+                },
+            ],
+            ..Default::default()
+        },
+        transform: Default::default(),
+        ..Default::default()
+    }).insert(BeganShop(time.seconds_since_startup()));
 }
 
 fn add_card(card: Card, slot: ShopSlot, commands: &mut Commands, handles: &Res<Handles>) {
@@ -255,11 +288,14 @@ fn add_card(card: Card, slot: ShopSlot, commands: &mut Commands, handles: &Res<H
 }
 
 fn update_ui(
+    time: Res<Time>,
     coin_limit: Res<CoinLimit>,
+    mut state: ResMut<State<AppState>>,
     mut queries: QuerySet<(
         Query<&PlayerData, With<MySelf>>,
         Query<&mut Text, With<Coins>>,
         Query<&mut Text, With<Level>>,
+        Query<(&mut Text, &BeganShop)>,
     )>,
 ) {
     let data = queries.q0().single().expect("No data for the player");
@@ -271,6 +307,15 @@ fn update_ui(
 
     let mut level_text = queries.q2_mut().single_mut().expect("Level text not found.");
     level_text.sections[1].value = format!("SHOP LEVEL {}", level);
+
+    let (mut time_text, BeganShop(t0)) = queries.q3_mut().single_mut().expect("TIme text not found.");
+    let remaining_time = 10. - time.seconds_since_startup() + *t0;
+    time_text.sections[0].value = format!("REMAINING TIME {}s", remaining_time as u8);
+
+    if remaining_time < 0. {
+        state.set(AppState::Fight);
+    }
+
 }
 
 fn highlight_slot(
@@ -456,5 +501,28 @@ fn update_coins(
         let (mut player_data) = data.single_mut().expect("Can't find player data.");
         if !diff.1 && diff.0 < 0 && player_data.coins + (-diff.0) as u16 > coin_limit.0 { break; }
         player_data.coins = (player_data.coins as i16 - diff.0 as i16) as u16;
+    }
+}
+
+fn on_exit(
+    mut commands: Commands,
+    cards: Query<(Entity, &Card, &ShopSlot)>,
+    mut player_data: Query<&mut PlayerData, With<MySelf>>,
+) {
+    let mut player_data = player_data.single_mut().expect("There should only be one player tagged with myself");
+    player_data.board = vec![];
+    player_data.hand = vec![];
+    for (e, &card, slot) in cards.iter() {
+        match slot.row {
+            ShopSlots::BOARD => {
+                player_data.board.push(card);
+            }
+            ShopSlots::HAND => {
+                player_data.hand.push(card);
+            }
+            ShopSlots::SHOP => {}
+            ShopSlots::SELL => {}
+        };
+        commands.entity(e).despawn_recursive();
     }
 }

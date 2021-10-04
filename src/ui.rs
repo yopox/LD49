@@ -4,6 +4,8 @@ use bevy::prelude::*;
 use crate::MainCamera;
 use crate::util::{cursor_pos, overlap, Z_CARD, Z_CARD_DRAG, Z_CARD_SWITCH};
 
+pub struct StateBackground;
+
 pub struct AnimationPlugin;
 
 pub mod easing {
