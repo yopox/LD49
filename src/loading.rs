@@ -123,9 +123,9 @@ pub struct TextureAssets {
 pub struct AudioAssets {
     #[asset(path = "ost/1- title.ogg")]
     pub title: Handle<AudioSource>,
-    #[asset(path = "ost/3- shop.ogg")]
+    #[asset(path = "ost/2- shop.ogg")]
     pub shop: Handle<AudioSource>,
-    #[asset(path = "ost/2- combat.ogg")]
+    #[asset(path = "ost/3- combat.ogg")]
     pub fight: Handle<AudioSource>,
     #[asset(path = "ost/SFX/TRANSI MUSIQUE.ogg")]
     pub intro: Handle<AudioSource>,
