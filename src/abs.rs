@@ -16,9 +16,10 @@ use crate::PlayerData;
 
 #[derive(Debug, Clone)]
 pub enum CombatEvents {
-    Attack { att_id: u16, att_card_index: u8, def_card_index: u8, change_def_hp: i32 },
-    Death { player_id: u16, card_index: u8 },
-    StatsChange { player_id: u16, card_index: u8, hp: i32, at: i32 },
+    Attack { att_id: u16, att_card_index: u8, def_card_index: u8 },
+    EndOfAttack { att_id: u16, att_card_index: u8, def_card_index: u8 },
+    Death { player_id: u16, card_id: u32 },
+    StatsChange { player_id: u16, card_id: u32, hp: i32, at: i32 },
     ApplyAbility { card_index: u8, player_id: u16, ability: Abilities, card_id: u32 },
     GoldChange { player_id: u16, change: i32 },
     PlayersAttack { att_id: u16, change_def_hp: i32 },
@@ -28,11 +29,12 @@ impl Display for CombatEvents {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
             CombatEvents::GoldChange { player_id, change } => write!(f, "GoldChange to={} of={} gold", player_id, change),
-            CombatEvents::Attack { att_id, att_card_index: att_card_id, def_card_index: def_card_id, change_def_hp } => { write!(f, "Attack of {}.{} on {}.{} --> hp after = {}", att_id, att_card_id, 1 - att_id, def_card_id, change_def_hp) }
-            CombatEvents::Death { player_id, card_index: card_id } => { write!(f, "Death of {}.{}", player_id, card_id) }
+            CombatEvents::Attack { att_id, att_card_index: att_card_id, def_card_index: def_card_id } => { write!(f, "Attack of {}.{} on {}.{}", att_id, att_card_id, 1 - att_id, def_card_id) }
+            CombatEvents::Death { player_id, card_id } => { write!(f, "Death of {}.{}", player_id, card_id) }
             CombatEvents::StatsChange { .. } => { write!(f, "Stats Change") }
             CombatEvents::ApplyAbility { card_index, player_id, ability, card_id } => { write!(f, "Effect {} of card {}.{}", ability, player_id, card_index) }
             CombatEvents::PlayersAttack { att_id, change_def_hp } => { write!(f, "Player {} takes {} to their opponent", att_id, change_def_hp) }
+            CombatEvents::EndOfAttack { .. } => { write!(f, "End of attack") }
         }
     }
 }
@@ -52,24 +54,24 @@ fn apply_effect(card_index: u8, opponent_card_index: u8, player_hb: &mut PlayerD
     ];
 
     match ability {
-        Abilities::ToxicSpores => events.push(CombatEvents::Death { player_id: opponent_hb.id, card_index: opponent_card_index }),
-        Abilities::Gigantism => events.push(CombatEvents::StatsChange { player_id, card_index, hp: 0, at: 1 }),
+        Abilities::ToxicSpores => events.push(CombatEvents::Death { player_id: opponent_hb.id, card_id: opponent_card.id }),
+        Abilities::Gigantism => events.push(CombatEvents::StatsChange { player_id, card_id: player_card.id, hp: 0, at: 1 }),
         Abilities::Sadism => todo!("Not yet implemented"),
         Abilities::ExplodingArmour => {
             for mut card in &mut opponent_hb.board {
                 if card.hp > 1 {
-                    events.push(CombatEvents::StatsChange { player_id: opponent_id, hp: -1, at: 0, card_index });
+                    events.push(CombatEvents::StatsChange { player_id: opponent_id, hp: -1, at: 0, card_id: card.id });
                 } else {
-                    events.push(CombatEvents::Death { player_id: opponent_id, card_index });
+                    events.push(CombatEvents::Death { player_id: opponent_id, card_id: opponent_card.id });
                 }
                 card.hp = card.hp - 1;
             }
             opponent_hb.board.retain(|card| { card.hp > 0 });
         }
         Abilities::Pillage => events.push(CombatEvents::GoldChange { change: 1, player_id }),
-        Abilities::Trap => events.push(CombatEvents::StatsChange { player_id: opponent_id, hp: 0, at: opponent_card.atk as i32 / 2, card_index: opponent_card_index }),
+        Abilities::Trap => events.push(CombatEvents::StatsChange { player_id: opponent_id, hp: 0, at: opponent_card.atk as i32 / 2, card_id: opponent_card.id }),
         Abilities::Multiplication => todo!("Not yet implemented"),
-        Abilities::Poisonous => events.push(CombatEvents::Death { player_id: opponent_id, card_index: opponent_card_index }),
+        Abilities::Poisonous => events.push(CombatEvents::Death { player_id: opponent_id, card_id: opponent_card.id }),
         _ => {}
     };
 
@@ -96,12 +98,11 @@ fn simulate_attack<T: Rng>(att_card_index: usize, att_hb: &mut PlayerData, def_h
 
     let att_card_index = att_card_index as u8;
 
-    let def_post_hp = def_card.hp as i32 - att_card.atk as i32;
-    events.push(CombatEvents::Attack { att_card_index, att_id: att_hb.id, def_card_index, change_def_hp: -(min2(def_card.hp, att_card.atk) as i32) });
+    events.push(CombatEvents::Attack { att_card_index, att_id: att_hb.id, def_card_index });
 
-    if def_post_hp <= 0 {
+    if def_card.hp <= att_card.atk {
         // Dies
-        events.push(CombatEvents::Death { player_id: def_hb.id, card_index: def_card_index });
+        events.push(CombatEvents::Death { player_id: def_hb.id, card_id: def_card.id });
 
         // Triggers Kill  or Hit on att
         if att_card_trigger == Triggers::Kill || att_card_trigger == Triggers::Hit {
@@ -114,22 +115,23 @@ fn simulate_attack<T: Rng>(att_card_index: usize, att_hb: &mut PlayerData, def_h
 
         def_hb.board.remove(def_card_index as usize);
 
+        events.push(CombatEvents::EndOfAttack { att_card_index, att_id: att_hb.id, def_card_index });
+
         return (events, false);
     }
 
+    events.push(CombatEvents::StatsChange { player_id: def_hb.id, card_id: def_card.id, at: 0, hp: - (att_card.atk as i32) });
+
     // Update card hp
-    def_hb.board[def_card_index as usize].hp = def_post_hp as u16;
+    def_hb.board[def_card_index as usize].hp = (def_card.hp as i32 - att_card.atk as i32) as u16;
     // Update variables for use after move
     let att_card = &att_hb.board[att_card_index as usize];
     let def_card = &def_hb.board[def_card_index as usize];
 
     // Counter-attack
-    let att_post_hp = att_card.hp as i32 - def_card.atk as i32;
-    events.push(CombatEvents::Attack { att_id: def_hb.id, def_card_index: att_card_index, att_card_index: def_card_index, change_def_hp: -(min2(att_card.hp, def_card.atk) as i32) });
-
-    if att_post_hp <= 0 {
+    if att_card.hp <= def_card.atk {
         // Dies
-        events.push(CombatEvents::Death { player_id: att_hb.id, card_index: att_card_index });
+        events.push(CombatEvents::Death { player_id: att_hb.id, card_id: att_card.id });
 
         // Triggers Kill or Hit on def
         if def_card_trigger == Triggers::Kill || def_card_trigger == Triggers::Hit {
@@ -141,8 +143,12 @@ fn simulate_attack<T: Rng>(att_card_index: usize, att_hb: &mut PlayerData, def_h
         }
 
         att_hb.board.remove(att_card_index as usize);
+
     } else {
-        att_hb.board[att_card_index as usize].hp = att_post_hp as u16;
+
+        events.push(CombatEvents::StatsChange { player_id: att_hb.id, card_id: att_card.id, at: 0, hp: - (def_card.atk as i32) });
+
+        att_hb.board[att_card_index as usize].hp = (att_card.hp as i32 - def_card.atk as i32) as u16;
 
         // Triggers Survived or Hit on att
         if att_card_trigger == Triggers::Survived || att_card_trigger == Triggers::Hit {
@@ -156,6 +162,8 @@ fn simulate_attack<T: Rng>(att_card_index: usize, att_hb: &mut PlayerData, def_h
         if def_card_trigger == Triggers::Hit {
             events.append(&mut apply_effect(def_card_index, att_card_index, def_hb, att_hb));
         }
+
+        events.push(CombatEvents::EndOfAttack { att_card_index, att_id: att_hb.id, def_card_index });
     }
 
     return (events, replay);

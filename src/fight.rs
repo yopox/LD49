@@ -1,13 +1,15 @@
+use std::cmp::min;
+
 use bevy::math::vec3;
 use bevy::prelude::*;
-use derive_more::Display;
 use bevy_kira_audio::{Audio, AudioChannel, AudioPlugin};
+use derive_more::Display;
 
 use crate::{AppState, GlobalData, HEIGHT, MySelf, PlayerData, WIDTH};
-use crate::loading::{AudioAssets, TextureAssets};
 use crate::abs::{CombatEvents, simulate_combat};
 use crate::card::{Abilities, Card, CARD_HEIGHT, NewCard, StatsChanged};
 use crate::font::TextStyles;
+use crate::loading::{AudioAssets, TextureAssets};
 use crate::ui::{easing, StateBackground, TranslationAnimation};
 use crate::util::{card_transform, cleanup_system, Coins, Corners, Level, PlayerHP, text_bundle_at_corner, Z_BACKGROUND, Z_CARD, Z_CARD_DRAG};
 
@@ -172,28 +174,27 @@ fn setup_fight(
     let mut stack = Vec::with_capacity(events.len());
     for e in events {
         match e {
-            CombatEvents::Attack { att_id, att_card_index, def_card_index, change_def_hp } => {
+            CombatEvents::Attack { att_id, att_card_index, def_card_index } => {
                 let att = if att_id == my_id { FightPlayers::MySelf } else { FightPlayers::MyFoe };
-                let def = other_player(att);
                 let att_base = FightSlot { who: to_base_height(att), index: att_card_index };
                 let att_post = FightSlot { who: to_fighting_height(att), index: def_card_index };
-                let def_base = FightSlot { who: to_base_height(def), index: def_card_index };
                 // Translation to fight
                 stack.push(FightEvents::Translation(Translation { from: att_base, to: att_post }));
-                // StatChange
-                stack.push(FightEvents::StatsChange(StatsChange { slot: def_base, at: 0, hp: change_def_hp }));
-                // Translation back to base
+            }
+            CombatEvents::EndOfAttack { att_id, att_card_index, def_card_index } => {
+                let att = if att_id == my_id { FightPlayers::MySelf } else { FightPlayers::MyFoe };
+                let att_base = FightSlot { who: to_base_height(att), index: att_card_index };
+                let att_post = FightSlot { who: to_fighting_height(att), index: def_card_index };
+                // Translation to fight
                 stack.push(FightEvents::Translation(Translation { from: att_post, to: att_base }));
             }
-            CombatEvents::Death { player_id, card_index } => {
+            CombatEvents::Death { player_id, card_id } => {
                 let player = if player_id == my_id { FightPlayers::MySelf } else { FightPlayers::MyFoe };
-                let slot = FightSlot { who: to_base_height(player), index: card_index };
-                stack.push(FightEvents::RemoveCard(RemoveCard(slot)));
+                stack.push(FightEvents::RemoveCard(RemoveCard(card_id)));
             }
-            CombatEvents::StatsChange { player_id, card_index, hp, at } => {
+            CombatEvents::StatsChange { player_id, card_id, hp, at } => {
                 let player = if player_id == my_id { FightPlayers::MySelf } else { FightPlayers::MyFoe };
-                let slot = FightSlot { who: to_base_height(player), index: card_index };
-                stack.push(FightEvents::StatsChange(StatsChange { slot, at, hp }));
+                stack.push(FightEvents::StatsChange(StatsChange { card_id, at, hp }));
             }
             CombatEvents::ApplyAbility { card_index, player_id, ability, card_id } => {
                 let player = if player_id == my_id { FightPlayers::MySelf } else { FightPlayers::MyFoe };
@@ -312,6 +313,15 @@ fn to_fighting_height(p: FightPlayers) -> FightSlotHeight {
     }
 }
 
+fn to_owner(s: FightSlotHeight) -> FightPlayers {
+    match s {
+        FightSlotHeight::MySelf => FightPlayers::MySelf,
+        FightSlotHeight::MyFoe => FightPlayers::MyFoe,
+        FightSlotHeight::FightingMySelf => FightPlayers::MyFoe,
+        FightSlotHeight::FightingMyFoe => FightPlayers::MySelf,
+    }
+}
+
 fn other_player(p: FightPlayers) -> FightPlayers {
     match p {
         FightPlayers::MySelf => FightPlayers::MyFoe,
@@ -324,10 +334,10 @@ struct Translation {
     to: FightSlot,
 }
 
-struct RemoveCard(FightSlot);
+struct RemoveCard(u32);
 
 struct StatsChange {
-    slot: FightSlot,
+    card_id: u32,
     hp: i32,
     at: i32,
 }
@@ -440,15 +450,14 @@ fn translate_slots(t0: f64, from: FightSlot, to: FightSlot, duration: f64) -> Tr
 
 fn stat_change_producer(
     mut er_stats_change: EventReader<StatsChange>,
-    mut query: Query<(Entity, &mut Card, &FightSlot)>,
+    mut query: Query<(Entity, &mut Card)>,
     mut commands: Commands,
     mut ev_stats: EventWriter<StatsChanged>,
     time: Res<Time>,
 ) {
     for event in er_stats_change.iter() {
-        for (e, mut card, &slot) in query.iter_mut() {
-            if slot == event.slot {
-                println!("Changing stats at slot {}.{}", slot.who, slot.index);
+        for (e, mut card) in query.iter_mut() {
+            if card.id == event.card_id {
                 card.hp = (card.hp as i32 + event.hp) as u16;
                 card.atk = (card.atk as i32 + event.at) as u16;
                 commands.spawn().insert(WaitUntil(time.seconds_since_startup() + 0.5));
@@ -462,21 +471,53 @@ fn remove_card_producer(
     time: Res<Time>,
     mut er_remove_card_event: EventReader<RemoveCard>,
     mut commands: Commands,
-    mut query: Query<(Entity, &mut FightSlot)>,
+    mut query: Query<(Entity, &mut FightSlot, &Card)>,
 ) {
     let t0 = time.seconds_since_startup();
-    let removed_slots: Vec<FightSlot> = er_remove_card_event.iter().map(|RemoveCard(t)| *t).collect();
+    let removed_ids: Vec<u32> = er_remove_card_event.iter().map(|RemoveCard(t)| *t).collect();
 
-    if removed_slots.is_empty() {
+    if removed_ids.is_empty() {
         return;
     }
 
-    let mut translated = false;
-    for (e, mut slot) in query.iter_mut() {
-        if removed_slots.contains(&slot) {
+    let mut removed_slots = vec![];
+    let mut my_to_push = 0usize;
+    let mut foe_to_push = 0usize;
+    let mut used = vec![];
+    for (e, mut slot, &card) in query.iter_mut() {
+        if removed_ids.contains(&card.id) {
             commands.entity(e)
                 .despawn_recursive();
+            if slot.who == FightSlotHeight::FightingMyFoe {
+                my_to_push += 1;
+            } else if slot.who == FightSlotHeight::FightingMySelf {
+                foe_to_push += 1;
+            } else {
+                removed_slots.push(slot.clone());
+            }
         } else {
+            used.push(slot);
+        }
+    }
+
+    while my_to_push > 0 {
+        let used_indexes : Vec<u8> = used.iter().filter(|slot| slot.who == FightSlotHeight::MySelf).map(|slot| slot.index).collect();
+        let mut first_empty = 0u8;
+        while used_indexes.contains(&first_empty) {first_empty += 1}
+        removed_slots.push(FightSlot { who: FightSlotHeight::MySelf , index: first_empty });
+        my_to_push -= 1;
+    }
+    while foe_to_push > 0 {
+        let used_indexes : Vec<u8> = used.iter().filter(|slot| slot.who == FightSlotHeight::MyFoe).map(|slot| slot.index).collect();
+        let mut first_empty = 0u8;
+        while used_indexes.contains(&first_empty) {first_empty += 1}
+        removed_slots.push(FightSlot { who: FightSlotHeight::MyFoe , index: first_empty });
+        foe_to_push -= 1;
+    }
+
+    let mut translated = false;
+    for (e, mut slot, &card) in query.iter_mut() {
+        if !removed_ids.contains(&card.id) {
             let removed_before: usize = removed_slots.iter().filter(|removed_slot| {
                 slot.who == removed_slot.who && removed_slot.index < slot.index
             }).count();
@@ -501,7 +542,6 @@ fn apply_effect_producer(
 ) {
     if er.iter().count() != 0 {
         commands.spawn().insert(WaitUntil(time.seconds_since_startup() + 0.5));
-        println!("Applying some effects");
     }
 }
 
