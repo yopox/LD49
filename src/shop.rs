@@ -1,4 +1,5 @@
-use std::cmp::{min, max};
+use std::cmp::{max, min};
+
 use bevy::math::{vec2, vec3};
 use bevy::prelude::*;
 
@@ -7,8 +8,8 @@ use crate::card::*;
 use crate::font::TextStyles;
 use crate::GlobalData;
 use crate::Handles;
-use crate::ui::{animate, animate_switch, animate_fast, Draggable, Dragged, DROP_BORDER, Dropped, easing, TranslationAnimation, TransitionOver, StateBackground};
-use crate::util::{card_transform, cleanup_system, Coins, Level, overlap, Slot, Z_BACKGROUND, Z_BOB};
+use crate::ui::{animate, animate_fast, animate_switch, Draggable, Dragged, DROP_BORDER, Dropped, easing, StateBackground, TransitionOver, TranslationAnimation};
+use crate::util::{card_transform, cleanup_system, Coins, Corners, Level, overlap, PlayerHP, Slot, text_bundle_at_corner, Z_BACKGROUND, Z_BOB};
 
 pub struct ShopPlugin;
 
@@ -48,30 +49,40 @@ impl Slot for ShopSlot {
 }
 
 struct Bob;
+
 struct SlotBorder;
+
 struct SlotHovered;
+
 struct Sold;
-struct CoinsDiff(i8, bool); // (gained coins ; can overflow)
+
+struct CoinsDiff(i8, bool);
+
+// (gained coins ; can overflow)
 struct CoinLimit(u16);
+
 struct BeganShop(f64);
+
 const MIN_COINS: u16 = 3;
 
-struct ShopCosts {
+struct ShopValues {
     buy: i8,
     sell: i8,
     refresh: i8,
     freeze: i8,
     gold_limit: u16,
+    timer: f64,
 }
 
-impl Default for ShopCosts {
+impl Default for ShopValues {
     fn default() -> Self {
-        ShopCosts {
+        ShopValues {
             buy: 3,
-            sell: -1,
+            sell: -2,
             refresh: 1,
             freeze: 0,
             gold_limit: 10,
+            timer: 15.,
         }
     }
 }
@@ -100,14 +111,16 @@ impl Plugin for ShopPlugin {
             )
             .add_system_set(
                 SystemSet::on_exit(AppState::Shop)
+                    .label("shop:cleanup")
                     .after("on_exit")
                     .with_system(cleanup_system::<ShopSlot>.system())
                     .with_system(cleanup_system::<SlotBorder>.system())
                     .with_system(cleanup_system::<Bob>.system())
-                    .with_system(cleanup_system::<ShopCosts>.system())
+                    .with_system(cleanup_system::<ShopValues>.system())
                     .with_system(cleanup_system::<CoinLimit>.system())
                     .with_system(cleanup_system::<Level>.system())
                     .with_system(cleanup_system::<Coins>.system())
+                    .with_system(cleanup_system::<PlayerHP>.system())
                     .with_system(cleanup_system::<BeganShop>.system())
                     .with_system(cleanup_system::<StateBackground>.system())
             )
@@ -119,6 +132,7 @@ fn init(
     time: Res<Time>,
     mut commands: Commands,
     mut global_data: ResMut<GlobalData>,
+    mut ev_new_card: EventWriter<NewCard>,
     handles: Res<Handles>,
     text_styles: Res<TextStyles>,
     mut query: Query<&mut PlayerData, With<MySelf>>,
@@ -129,40 +143,52 @@ fn init(
 
     global_data.turn += 1;
 
-    let costs = ShopCosts::default();
-    let coins = max(MIN_COINS, min(global_data.turn, costs.gold_limit))
+    let shop_values = ShopValues::default();
+    let coins = max(MIN_COINS, min(global_data.turn, shop_values.gold_limit))
         + player_data.extra_coins;
     player_data.coins = coins;
+    player_data.extra_coins = 0;
     commands.insert_resource(CoinLimit(coins));
-    commands.insert_resource(costs);
+    commands.insert_resource(shop_values);
 
     for (i, &card) in player_data.board.iter().enumerate() {
-        add_card(card,
-                 ShopSlot { row: ShopSlots::BOARD, id: i as u8 },
-                 &mut commands, &handles);
+        let added_card = add_card(card,
+                                  ShopSlot { row: ShopSlots::BOARD, id: i as u8 },
+                                  &mut commands, &handles, &mut ev_new_card);
     }
 
     for (i, &card) in player_data.hand.iter().enumerate() {
-        add_card(card,
-                 ShopSlot { row: ShopSlots::HAND, id: i as u8 },
-                 &mut commands, &handles);
+        let added_card = add_card(card,
+                                  ShopSlot { row: ShopSlots::HAND, id: i as u8 },
+                                  &mut commands, &handles, &mut ev_new_card);
     }
 
-    add_card(Card::new(CardTypes::MERCH_8, global_data.next_card_id),
-             ShopSlot { row: ShopSlots::SHOP, id: 0 },
-             &mut commands, &handles);
+    let added_card_1 = add_card(Card::new(BaseCards::MERCH_8, global_data.next_card_id),
+                                ShopSlot { row: ShopSlots::SHOP, id: 0 },
+                                &mut commands, &handles, &mut ev_new_card);
     global_data.next_card_id += 1;
 
-    add_card(Card::new(CardTypes::MUSH_8, global_data.next_card_id),
-             ShopSlot { row: ShopSlots::SHOP, id: 1 },
-             &mut commands, &handles);
+    let added_card_2 = add_card(Card::new(BaseCards::MUSH_8, global_data.next_card_id),
+                                ShopSlot { row: ShopSlots::SHOP, id: 1 },
+                                &mut commands, &handles, &mut ev_new_card);
     global_data.next_card_id += 1;
+
+    let bob_slot = ShopSlot { row: ShopSlots::SELL, id: 0 };
+    commands
+        .spawn_bundle(SpriteBundle {
+            material: handles.shop_bob.clone(),
+            transform: Transform {
+                translation: Vec3::new(bob_slot.x(), bob_slot.y(), Z_BOB),
+                scale: Vec3::new(CARD_SCALE, CARD_SCALE, 1.),
+                ..Default::default()
+            },
+            ..Default::default()
+        })
+        .insert(Bob);
 
     // Slots
+    commands.spawn().insert(bob_slot);
     for i in 0..=6 {
-        if i == 0 {
-            commands.spawn().insert(ShopSlot { row: ShopSlots::SELL, id: 0 });
-        }
         if i <= 4 {
             commands.spawn().insert(ShopSlot { row: ShopSlots::HAND, id: i });
         }
@@ -210,7 +236,7 @@ fn init(
             text: Text::with_section(
                 "".to_string(),
                 text_styles.love_bug_small.clone(),
-                Default::default()
+                Default::default(),
             ),
             transform: Default::default(),
             ..Default::default()
@@ -218,67 +244,37 @@ fn init(
         .insert(Coins);
 
     commands
-        .spawn_bundle(TextBundle {
-            style: Style {
-                align_self: AlignSelf::FlexEnd,
-                position_type: PositionType::Absolute,
-                position: Rect {
-                    top: Val::Px(15.0),
-                    left: Val::Px(15.0),
-                    ..Default::default()
-                },
-                ..Default::default()
-            },
-            text: Text {
-                sections: vec![
-                    TextSection {
-                        value: format!("TURN {}\n", global_data.turn),
-                        style: text_styles.love_bug_small.clone(),
-                        ..Default::default()
-                    },
-                    TextSection {
-                        value: "".to_string(),
-                        style: text_styles.love_bug_small.clone(),
-                        ..Default::default()
-                    }
-                ],
-              ..Default::default()
-            },
-            transform: Default::default(),
-            ..Default::default()
-        })
+        .spawn_bundle(
+            text_bundle_at_corner(
+                Corners::BottomRight,
+                vec![format!("YOUR HP: {}", player_data.hp)],
+                &text_styles.love_bug_small,
+            )
+        )
+        .insert(PlayerHP);
+
+    commands
+        .spawn_bundle(
+            text_bundle_at_corner(
+                Corners::TopLeft,
+                vec![format!("TURN {}\n", global_data.turn), "".to_string()],
+                &text_styles.love_bug_small,
+            )
+        )
         .insert(Level);
 
-    commands.spawn_bundle(TextBundle {
-        style: Style {
-            // align_self: AlignSelf::FlexEnd,
-            position_type: PositionType::Absolute,
-            position: Rect {
-                top: Val::Px(15.0),
-                right: Val::Px(15.0),
-                ..Default::default()
-            },
-            ..Default::default()
-        },
-        text: Text {
-            sections: vec![
-                TextSection {
-                    value: format!("REMAINING TIME 60s\n"),
-                    style: text_styles.love_bug_small.clone(),
-                    ..Default::default()
-                },
-            ],
-            ..Default::default()
-        },
-        transform: Default::default(),
-        ..Default::default()
-    }).insert(BeganShop(time.seconds_since_startup()));
+    commands.spawn_bundle(
+        text_bundle_at_corner(
+            Corners::TopRight,
+            vec!["REMAINING TIME 60s".to_string()],
+            &text_styles.love_bug_small,
+        )).insert(BeganShop(time.seconds_since_startup()));
 }
 
-fn add_card(card: Card, slot: ShopSlot, commands: &mut Commands, handles: &Res<Handles>) {
-    commands
+fn add_card(card: Card, slot: ShopSlot, commands: &mut Commands, handles: &Res<Handles>, ev_new_card: &mut EventWriter<NewCard>) -> Entity {
+    let id = commands
         .spawn_bundle(SpriteBundle {
-            material: card.card_type.handle(&handles),
+            material: card.base_card.handle(&handles),
             transform: card_transform(slot.x(), slot.y()),
             ..Default::default()
         })
@@ -287,11 +283,14 @@ fn add_card(card: Card, slot: ShopSlot, commands: &mut Commands, handles: &Res<H
             size: vec2(CARD_WIDTH / 2., CARD_HEIGHT / 2.),
         })
         .insert(slot)
-    ;
+        .id();
+    ev_new_card.send(NewCard(id, card.clone()));
+    return id;
 }
 
 fn update_ui(
     time: Res<Time>,
+    shop_values: Res<ShopValues>,
     coin_limit: Res<CoinLimit>,
     mut state: ResMut<State<AppState>>,
     mut queries: QuerySet<(
@@ -312,13 +311,12 @@ fn update_ui(
     level_text.sections[1].value = format!("SHOP LEVEL {}", level);
 
     let (mut time_text, BeganShop(t0)) = queries.q3_mut().single_mut().expect("TIme text not found.");
-    let remaining_time = 10. - time.seconds_since_startup() + *t0;
+    let remaining_time = shop_values.timer - time.seconds_since_startup() + *t0;
     time_text.sections[0].value = format!("REMAINING TIME {}s", remaining_time as u8);
 
     if remaining_time < 0. {
         state.set(AppState::Fight);
     }
-
 }
 
 fn highlight_slot(
@@ -360,9 +358,9 @@ fn highlight_slot(
     }
     let hovered_slot = hovered_slot.unwrap();
     let possible = match origin_slot.row {
-        ShopSlots::SHOP => hovered_slot.row == ShopSlots::HAND,
+        ShopSlots::SHOP => hovered_slot.row == ShopSlots::HAND || hovered_slot.row == ShopSlots::BOARD,
         ShopSlots::BOARD => hovered_slot.row == ShopSlots::BOARD || hovered_slot.row == ShopSlots::SELL,
-        ShopSlots::HAND => hovered_slot.row == ShopSlots::BOARD || hovered_slot.row == ShopSlots::HAND,
+        ShopSlots::HAND => hovered_slot.row == ShopSlots::BOARD || hovered_slot.row == ShopSlots::HAND || hovered_slot.row == ShopSlots::SELL,
         ShopSlots::SELL => false,
     };
 
@@ -381,7 +379,7 @@ fn drop_card(
     mut commands: Commands,
     mut ev_dropped: EventReader<Dropped>,
     mut ev_coins: EventWriter<CoinsDiff>,
-    costs: Res<ShopCosts>,
+    shop_values: Res<ShopValues>,
     time: Res<Time>,
     mut queries: QuerySet<(
         Query<(Entity, &ShopSlot), With<SlotHovered>>,
@@ -430,9 +428,11 @@ fn drop_card(
                 let (data) = queries.q2().single().expect("Can't find player data.");
 
                 let legal_move: bool = match origin_slot.row {
-                    ShopSlots::HAND => destination_slot.row == ShopSlots::HAND || destination_slot.row == ShopSlots::BOARD && existing_entity.is_none(),
+                    ShopSlots::HAND => destination_slot.row == ShopSlots::HAND ||
+                        destination_slot.row == ShopSlots::SELL ||
+                        destination_slot.row == ShopSlots::BOARD && existing_entity.is_none(),
                     ShopSlots::BOARD => destination_slot.row == ShopSlots::BOARD || destination_slot.row == ShopSlots::SELL,
-                    ShopSlots::SHOP => destination_slot.row == ShopSlots::HAND && existing_entity.is_none() && data.coins >= costs.buy as u16,
+                    ShopSlots::SHOP => (destination_slot.row == ShopSlots::HAND || destination_slot.row == ShopSlots::BOARD) && existing_entity.is_none() && data.coins >= shop_values.buy as u16,
                     ShopSlots::SELL => false,
                 };
                 // println!["Move: {:?} {} -> {:?} {} : {}", &origin_slot.row, &origin_slot.id, &destination_slot.row, &destination_slot.id, legal_move];
@@ -447,8 +447,8 @@ fn drop_card(
                                 .entity(e)
                                 .insert(animate_fast(&time, (transform.translation.x, transform.translation.y), (destination_slot.x(), destination_slot.y())));
                             if destination_slot.row == ShopSlots::SELL { commands.entity(e).insert(Sold); }
-                            if origin_slot.row == ShopSlots::SHOP && destination_slot.row == ShopSlots::HAND {
-                                ev_coins.send(CoinsDiff(costs.buy, false));
+                            else if origin_slot.row == ShopSlots::SHOP {
+                                ev_coins.send(CoinsDiff(shop_values.buy, false));
                             }
                         } else {
                             commands
@@ -480,7 +480,7 @@ fn drop_card(
 
 fn sell_card(
     mut commands: Commands,
-    costs: Res<ShopCosts>,
+    shop_values: Res<ShopValues>,
     mut ev_transition: EventReader<TransitionOver>,
     mut ev_coins: EventWriter<CoinsDiff>,
     mut cards: Query<(Entity, &ShopSlot), With<Card>>,
@@ -488,8 +488,8 @@ fn sell_card(
     for transition in ev_transition.iter() {
         for (e, slot) in cards.iter_mut() {
             if e == transition.0 && slot.row == ShopSlots::SELL {
-                commands.entity(transition.0).despawn();
-                ev_coins.send(CoinsDiff(costs.sell, false));
+                commands.entity(transition.0).despawn_recursive();
+                ev_coins.send(CoinsDiff(shop_values.sell, false));
             }
         }
     }
@@ -502,7 +502,10 @@ fn update_coins(
 ) {
     for diff in ev_coins.iter() {
         let (mut player_data) = data.single_mut().expect("Can't find player data.");
-        if !diff.1 && diff.0 < 0 && player_data.coins + (-diff.0) as u16 > coin_limit.0 { break; }
+        if !diff.1 && diff.0 < 0 && player_data.coins + (-diff.0) as u16 > coin_limit.0 {
+            player_data.coins = max(coin_limit.0, player_data.coins);
+            break;
+        }
         player_data.coins = (player_data.coins as i16 - diff.0 as i16) as u16;
     }
 }

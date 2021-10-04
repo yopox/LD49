@@ -2,7 +2,7 @@ use bevy::prelude::*;
 use rand::{Rng, SeedableRng};
 use rand::rngs::StdRng;
 
-use crate::card::{Card, CardPlugin, CardTypes};
+use crate::card::{Card, CardPlugin, BaseCards};
 use crate::fight::{FightPlugin, MyFoe};
 use crate::shop::ShopPlugin;
 use crate::title::TitlePlugin;
@@ -37,6 +37,8 @@ pub struct Handles {
     pub fight_bg: Handle<ColorMaterial>,
     pub slot_border: Handle<ColorMaterial>,
     pub shop_bob: Handle<ColorMaterial>,
+
+    pub background_color: Handle<ColorMaterial>,
 }
 
 struct MainCamera;
@@ -80,6 +82,8 @@ fn setup(
         fight_bg: materials.add(asset_server.load("fight.png").into()),
         slot_border: materials.add(asset_server.load("slot_border.png").into()),
         shop_bob: materials.add(asset_server.load("MERCHANT STORE.png").into()),
+
+        background_color: materials.add(Color::rgb(244. / 255., 237. / 255., 219. / 255.).into()),
     });
 
     // Spawn camera
@@ -138,11 +142,11 @@ fn setup_data(
             id: 0,
             name: "H".to_string(),
             hand: vec![
-                Card::new(CardTypes::SPID_8, 0),
+                Card::new(BaseCards::SPID_8, 0),
             ],
             board: vec![
-                Card::new(CardTypes::ROB_8, 1),
-                Card::new(CardTypes::MUSH_8, 2),
+                Card::new(BaseCards::ROB_8, 1),
+                Card::new(BaseCards::MUSH_8, 2),
             ],
             ..Default::default()
         }).insert(MySelf);
@@ -151,8 +155,8 @@ fn setup_data(
             id: 1,
             name: "L".to_string(),
             board: vec![
-                Card::new(CardTypes::SPID_8, 3),
-                Card::new(CardTypes::MERCH_8, 4),
+                Card::new(BaseCards::SPID_8, 3),
+                Card::new(BaseCards::MERCH_8, 4),
             ],
             ..Default::default()
         }).insert(MyFoe);

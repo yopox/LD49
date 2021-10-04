@@ -1,18 +1,23 @@
+use std::collections::HashMap;
+use std::error::Error;
+
 use bevy::ecs::system::EntityCommands;
 use bevy::math::Vec4Swizzles;
 use bevy::prelude::*;
+use bevy::text::Text2dSize;
 use derive_more::Display;
 
 use crate::{Handles, HEIGHT, MainCamera, WIDTH};
 use crate::font::*;
-use crate::util::{cursor_pos, overlap, Z_POPUP_BG};
+use crate::ui::Dragged;
+use crate::util::{cursor_pos, overlap, Z_POPUP_BG, Z_POPUP_TEXT, Z_STATS, Z_STATS_BG};
 
 pub const CARD_SCALE: f32 = 0.4;
 pub const CARD_WIDTH: f32 = 270. * CARD_SCALE;
 pub const CARD_HEIGHT: f32 = 420. * CARD_SCALE;
 
 #[derive(Copy, Clone)]
-pub enum CardTypes {
+pub enum BaseCards {
     MUSH_8,
     MERCH_8,
     SPID_8,
@@ -21,20 +26,20 @@ pub enum CardTypes {
 
 #[derive(Copy, Clone)]
 pub struct Card {
-    pub card_type: CardTypes,
+    pub base_card: BaseCards,
     pub id: u32,
     pub hp: u16,
-    pub at: u16,
+    pub atk: u16,
     pub played: u8,
 }
 
 impl Default for Card {
     fn default() -> Self {
         Card {
-            card_type: CardTypes::MERCH_8,
+            base_card: BaseCards::MERCH_8,
             id: 0,
             hp: 0,
-            at: 0,
+            atk: 0,
             played: 0,
         }
     }
@@ -82,205 +87,303 @@ pub enum Triggers {
     None,
 }
 
-impl CardTypes {
+impl BaseCards {
     pub fn name(&self) -> &'static str {
         match self {
-            CardTypes::MUSH_8 => "Titanicus",
-            CardTypes::MERCH_8 => "Tujilus",
-            CardTypes::SPID_8 => "Australian black widow",
-            CardTypes::ROB_8 => "SkyBot",
+            BaseCards::MUSH_8 => "Titanicus",
+            BaseCards::MERCH_8 => "Tujilus",
+            BaseCards::SPID_8 => "Australian black widow",
+            BaseCards::ROB_8 => "SkyBot",
         }
     }
 
     pub fn ability(&self) -> Abilities {
         match self {
-            CardTypes::MUSH_8 => Abilities::Gigantism,
-            CardTypes::MERCH_8 => Abilities::Dexterity,
-            CardTypes::SPID_8 => Abilities::Cannibalism,
-            CardTypes::ROB_8 => Abilities::Download,
+            BaseCards::MUSH_8 => Abilities::Gigantism,
+            BaseCards::MERCH_8 => Abilities::Dexterity,
+            BaseCards::SPID_8 => Abilities::Cannibalism,
+            BaseCards::ROB_8 => Abilities::Download,
         }
     }
 
     pub fn description(&self) -> &'static str {
         match self {
-            CardTypes::MUSH_8 => "Gets +1 ATK.",
-            CardTypes::MERCH_8 => "Attacks another enemy once.",
-            CardTypes::SPID_8 => "Eats the lowest rank spider\nof the board, and gains\nits stats.",
-            CardTypes::ROB_8 => "Steals +1 HP and +1 ATK\nfrom each allied robot.",
+            BaseCards::MUSH_8 => "Gets +1 ATK.",
+            BaseCards::MERCH_8 => "Attacks another enemy once.",
+            BaseCards::SPID_8 => "Eats the lowest rank spider\nof the board, and gains\nits stats.",
+            BaseCards::ROB_8 => "Steals +1 HP and +1 ATK\nfrom each allied robot.",
         }
     }
 
     pub fn rank(&self) -> u8 {
         match self {
-            CardTypes::MUSH_8 => 4,
-            CardTypes::MERCH_8 => 4,
-            CardTypes::SPID_8 => 4,
-            CardTypes::ROB_8 => 4,
+            BaseCards::MUSH_8 => 4,
+            BaseCards::MERCH_8 => 4,
+            BaseCards::SPID_8 => 4,
+            BaseCards::ROB_8 => 4,
         }
     }
 
     pub fn trigger(&self) -> Triggers {
         match self {
-            CardTypes::MUSH_8 => Triggers::Kill,
-            CardTypes::MERCH_8 => Triggers::Survived,
-            CardTypes::SPID_8 => Triggers::Turn,
-            CardTypes::ROB_8 => Triggers::Turn,
+            BaseCards::MUSH_8 => Triggers::Kill,
+            BaseCards::MERCH_8 => Triggers::Survived,
+            BaseCards::SPID_8 => Triggers::Turn,
+            BaseCards::ROB_8 => Triggers::Turn,
         }
     }
 
     pub fn handle(&self, handles: &Res<Handles>) -> Handle<ColorMaterial> {
         match self {
-            CardTypes::MUSH_8 => handles.mush_8.clone(),
-            CardTypes::MERCH_8 => handles.merch_8.clone(),
-            CardTypes::SPID_8 => handles.spid_8.clone(),
-            CardTypes::ROB_8 => handles.rob_8.clone(),
+            BaseCards::MUSH_8 => handles.mush_8.clone(),
+            BaseCards::MERCH_8 => handles.merch_8.clone(),
+            BaseCards::SPID_8 => handles.spid_8.clone(),
+            BaseCards::ROB_8 => handles.rob_8.clone(),
         }
     }
 }
 
 impl Card {
-    pub(crate) fn new(card_type: CardTypes, id: u32) -> Self {
+    pub(crate) fn new(card_type: BaseCards, id: u32) -> Self {
         match card_type {
-            CardTypes::MUSH_8 => Card { id, card_type, at: 8, hp: 6, ..Default::default() },
-            CardTypes::MERCH_8 => Card { id, card_type, at: 5, hp: 9, ..Default::default() },
-            CardTypes::SPID_8 => Card { id, card_type, at: 4, hp: 4, ..Default::default() },
-            CardTypes::ROB_8 => Card { id, card_type, at: 3, hp: 3, ..Default::default() },
+            BaseCards::MUSH_8 => Card { id, base_card: card_type, atk: 8, hp: 6, ..Default::default() },
+            BaseCards::MERCH_8 => Card { id, base_card: card_type, atk: 5, hp: 9, ..Default::default() },
+            BaseCards::SPID_8 => Card { id, base_card: card_type, atk: 4, hp: 4, ..Default::default() },
+            BaseCards::ROB_8 => Card { id, base_card: card_type, atk: 3, hp: 3, ..Default::default() },
         }
     }
 }
 
 pub(crate) struct CardPlugin;
 
+pub struct NewCard(pub Entity, pub Card);
+
+pub struct StatsChanged(pub Entity);
+
+struct Prepare;
+
 impl Plugin for CardPlugin {
     fn build(&self, app: &mut AppBuilder) {
         app
-            .add_startup_system_to_stage(StartupStage::PostStartup, init_popup.system())
-            .add_system(update_popup.system().label("popup:update").after("drag:update"))
-            .add_system(update_background.system().before("popup:update"));
+            .add_event::<NewCard>()
+            .add_event::<StatsChanged>()
+            .add_system(init_popup.system().label("popup:init"))
+            .add_system(update_size.system().label("popup:update").after("popup:init"))
+            .add_system(update_popup_visibility.system().after("popup:update"))
+            .add_system(update_stats.system());
+        //.add_system(update_background.system().before("popup:update"));update_stats
     }
 }
 
 struct Popup;
 struct PopupBackground;
+struct AtkStat;
+struct HpStat;
+struct StatsBackground;
 
 const POPUP_X_OFFSET: f32 = 20.;
 const POPUP_PADDING: f32 = 10.;
 
 fn init_popup(
     mut commands: Commands,
-    mut materials: ResMut<Assets<ColorMaterial>>,
+    handles: Res<Handles>,
+    mut ev_new_card: EventReader<NewCard>,
     text_styles: Res<TextStyles>,
 ) {
-    commands
-        .spawn_bundle(TextBundle {
-            style: Style {
-                position_type: PositionType::Absolute,
-                position: Rect {
-                    top: Val::Px(0.0),
-                    left: Val::Px(20.0),
+    for new_card in ev_new_card.iter() {
+        let base_card = new_card.1.base_card;
+        commands.entity(new_card.0).with_children(|parent| {
+            parent
+                .spawn_bundle(Text2dBundle {
+                    text: Text {
+                        sections: vec![
+                            TextSection {
+                                value: format!("{}\n\n", base_card.name().to_string()),
+                                style: text_styles.love_bug_small.clone(),
+                            },
+                            TextSection {
+                                value: format!("{}\n\n", base_card.ability().to_string()),
+                                style: text_styles.bird_seed_small.clone(),
+                            },
+                            TextSection {
+                                value: format!("{}\n\n", base_card.description().to_string()),
+                                style: text_styles.bird_seed_small.clone(),
+                            },
+                        ],
+                        ..Default::default()
+                    },
+                    visible: Visible {
+                        is_visible: false,
+                        is_transparent: true,
+                    },
+                    transform: Transform {
+                        translation: Vec3::new(0.0, 0.0, Z_POPUP_TEXT),
+                        ..Default::default()
+                    },
                     ..Default::default()
-                },
-                margin: Rect::all(Val::Px(POPUP_PADDING)),
-                ..Default::default()
-            },
-            text: Text {
-                sections: vec![
-                    TextSection {
-                        value: "Name\n\n".to_string(),
-                        style: text_styles.love_bug_small.clone(),
-                    },
-                    TextSection {
-                        value: "Ability - Trigger\n\n".to_string(),
-                        style: text_styles.bird_seed_small.clone(),
-                    },
-                    TextSection {
-                        value: "Description of the ability.\nCan have multiple lines.".to_string(),
-                        style: text_styles.bird_seed_small.clone(),
-                    },
-                ],
-                ..Default::default()
-            },
-            visible: Visible {
-                is_visible: false,
-                ..Default::default()
-            },
-            ..Default::default()
-        })
-        .insert(Popup);
+                })
+                .insert(Popup)
+                .insert(Prepare);
 
-    commands
-        .spawn_bundle(SpriteBundle {
-            material: materials.add(Color::rgb(244. / 255., 237. / 255., 219. / 255.).into()),
-            sprite: Sprite::new(Vec2::new(120.0, 80.0)),
-            visible: Visible {
-                is_visible: false,
-                ..Default::default()
-            },
-            transform: Transform {
-                translation: Vec3::new(0., 0., Z_POPUP_BG),
-                ..Default::default()
-            },
-            ..Default::default()
-        })
-        .insert(PopupBackground);
+            parent
+                .spawn_bundle(SpriteBundle {
+                    material: handles.background_color.clone(),
+                    sprite: Sprite::new(Vec2::new(0.0, 0.0)),
+                    visible: Visible {
+                        is_visible: false,
+                        ..Default::default()
+                    },
+                    transform: Transform {
+                        translation: Vec3::new(0., 0., Z_POPUP_BG),
+                        ..Default::default()
+                    },
+                    ..Default::default()
+                })
+                .insert(PopupBackground)
+                .insert(Prepare);
+
+            parent
+                .spawn_bundle(SpriteBundle {
+                    material: handles.background_color.clone(),
+                    sprite: Sprite::new(Vec2::new(254.0, 50.0)),
+                    transform: Transform {
+                        translation: Vec3::new(0., (-CARD_HEIGHT / 2. + 12.) / CARD_SCALE, Z_STATS_BG),
+                        ..Default::default()
+                    },
+                    ..Default::default()
+                })
+                .insert(StatsBackground);
+
+            parent
+                .spawn_bundle(Text2dBundle {
+                    text: Text::with_section(format!("{} HP", new_card.1.hp),
+                                             text_styles.stats.clone(),
+                                             TextAlignment {
+                                                 horizontal: HorizontalAlign::Center,
+                                                 ..Default::default()
+                                             }),
+                    transform: Transform {
+                        translation: Vec3::new(-CARD_WIDTH / 4. / CARD_SCALE + 6., -CARD_HEIGHT / 2. / CARD_SCALE + 10., Z_STATS),
+                        ..Default::default()
+                    },
+                    ..Default::default()
+                })
+                .insert(HpStat);
+
+            parent
+                .spawn_bundle(Text2dBundle {
+                    text: Text::with_section(format!("{} ATK", new_card.1.atk),
+                                             text_styles.stats.clone(),
+                                             TextAlignment {
+                                                 horizontal: HorizontalAlign::Center,
+                                                 ..Default::default()
+                                             }),
+                    transform: Transform {
+                        translation: Vec3::new(CARD_WIDTH / 4. / CARD_SCALE - 6., -CARD_HEIGHT / 2. / CARD_SCALE + 10., Z_STATS),
+                        ..Default::default()
+                    },
+                    ..Default::default()
+                })
+                .insert(HpStat);
+        });
+    }
 }
 
-fn update_popup(
+fn update_popup_visibility(
     windows: Res<Windows>,
     mut queries: QuerySet<(
         Query<&Transform, With<MainCamera>>,
-        Query<(&Card, &Transform)>,
-        Query<(&mut Style, &mut Text, &mut Visible), With<Popup>>,
+        Query<(Entity, &Transform), (With<Dragged>, With<Card>)>,
+        Query<(Entity, &Transform, &Children), With<Card>>,
+    )>,
+    mut visible_queries: QuerySet<(
+        Query<(&mut Visible), With<Popup>>,
+        Query<(&mut Visible), With<PopupBackground>>,
     )>,
 ) {
-    let mut hover: Option<(CardTypes, Transform)> = None;
-
     // Get cursor position
     let window = windows.get_primary().unwrap();
     if let Some(cursor) = cursor_pos(window, queries.q0().single().unwrap()) {
-        // Get hovered card id & transform
-        for (card, transform) in queries.q1().iter() {
+        // If a card is dragged and hovered it has popup priority
+        let mut priority: Option<Entity> = None;
+        for (e, transform) in queries.q1().iter() {
             let card_pos = transform.translation;
             if overlap(cursor.xyz(), card_pos, (CARD_WIDTH / 2., CARD_HEIGHT / 2.)) {
-                hover = Some((card.card_type.clone(), transform.clone()));
+                priority = Some(e);
                 break;
             }
         }
-    }
 
-    // Update popup
-    let (mut style, mut text, mut visible) = queries.q2_mut().single_mut().unwrap();
-    if let Some((card, transform)) = hover {
-        visible.is_visible = true;
-        style.position.top = Val::Px(HEIGHT - (transform.translation.y + CARD_HEIGHT / 2.));
-        style.position.left = Val::Px(transform.translation.x + CARD_WIDTH / 2. + POPUP_X_OFFSET);
-        text.sections[0].value = format!("{}\n\n", card.name().to_string());
-        text.sections[1].value = format!("{}\n\n", card.ability().to_string());
-        text.sections[2].value = format!("{}\n\n", card.description().to_string());
-    } else {
-        visible.is_visible = false;
+        // Set visibilities
+        for (e, transform, children) in queries.q2().iter() {
+            let visible = match priority {
+                Some(dragged_e) => e == dragged_e,
+                None => overlap(cursor.xyz(), transform.translation, (CARD_WIDTH / 2., CARD_HEIGHT / 2.)),
+            };
+            for child in children.iter() {
+                if let Ok(mut visible_text) = visible_queries.q0_mut().get_mut(*child) {
+                    visible_text.is_visible = visible;
+                    continue;
+                }
+                if let Ok(mut visible_bg) = visible_queries.q1_mut().get_mut(*child) {
+                    visible_bg.is_visible = visible;
+                }
+            }
+        }
     }
 }
 
-fn update_background(
+fn update_size(
+    mut commands: Commands,
     mut queries: QuerySet<(
-        Query<(&Visible, &Style, &CalculatedSize), With<Popup>>,
-        Query<(&mut Visible, &mut Sprite, &mut Transform), With<PopupBackground>>,
+        Query<(Entity, &Parent, &mut Transform, &Text2dSize), (With<Popup>, With<Prepare>)>,
+        Query<(Entity, &Parent, &mut Sprite, &mut Transform), (With<PopupBackground>, With<Prepare>)>,
     )>,
 ) {
-    let (text_visible, style, calculated_size) = queries.q0().single().expect("Can't find popup.");
-    let visible = text_visible.is_visible;
-    let (x, y) = (style.position.left, style.position.top);
-    let size = calculated_size.size;
+    let mut text_sizes: HashMap<Entity, Size> = HashMap::new();
+    for (text_e, parent, mut transform, text_size) in queries.q0_mut().iter_mut() {
+        let size = text_size.size;
+        if size.width == 0. && size.height == 0. { break; }
+        transform.translation.x = (CARD_WIDTH / 2. + size.width + POPUP_PADDING) / CARD_SCALE;
+        transform.translation.y = (CARD_HEIGHT / 2. - size.height - POPUP_PADDING) / CARD_SCALE;
+        commands.entity(text_e).remove::<Prepare>();
+        text_sizes.insert(parent.0, size.clone());
+    }
 
-    let (mut bg_visible, mut sprite, mut transform) = queries.q1_mut().single_mut().expect("Can't find popup background.");
-    bg_visible.is_visible = visible;
-    if visible {
-        sprite.size.x = size.width + 2. * POPUP_PADDING;
-        sprite.size.y = size.height + 2. * POPUP_PADDING;
-        if let (Val::Px(x), Val::Px(y)) = (x, y) {
-            transform.translation.x = x + size.width / 2. + POPUP_PADDING;
-            transform.translation.y = HEIGHT - y - size.height / 2. - POPUP_PADDING;
+    for (bg_e, bg_parent, mut sprite, mut bg_transform) in queries.q1_mut().iter_mut() {
+        if let Some(size) = text_sizes.get(&bg_parent.0) {
+            sprite.size.x = (&size.width + 2. * POPUP_PADDING) / CARD_SCALE;
+            sprite.size.y = (&size.height + 2. * POPUP_PADDING) / CARD_SCALE;
+            bg_transform.translation.x = (CARD_WIDTH / 2. + &size.width / 2. + POPUP_PADDING) / CARD_SCALE;
+            bg_transform.translation.y = (CARD_HEIGHT / 2. - &size.height / 2. - POPUP_PADDING) / CARD_SCALE;
+            commands.entity(bg_e).remove::<Prepare>();
+        }
+    }
+}
+
+fn update_stats(
+    mut ev_stats: EventReader<StatsChanged>,
+    mut texts: QuerySet<(
+        Query<(&Parent, &mut Text), With<AtkStat>>,
+        Query<(&Parent, &mut Text), With<HpStat>>,
+    )>,
+    cards: Query<&Card>,
+) {
+    for event in ev_stats.iter() {
+        if let Ok(card) = cards.get(event.0) {
+            for (parent, mut text) in texts.q0_mut().iter_mut() {
+                if parent.0 == event.0 {
+                    text.sections[0].value = format!("{} ATK", card.atk);
+                    break;
+                }
+            }
+
+            for (parent, mut text) in texts.q1_mut().iter_mut() {
+                if parent.0 == event.0 {
+                    text.sections[0].value = format!("{} HP", card.hp);
+                    break;
+                }
+            }
         }
     }
 }

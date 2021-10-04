@@ -4,10 +4,10 @@ use derive_more::Display;
 
 use crate::{AppState, GlobalData, Handles, HEIGHT, MySelf, PlayerData, WIDTH};
 use crate::abs::{CombatEvents, simulate_combat};
-use crate::card::{Abilities, Card, CARD_HEIGHT};
+use crate::card::{Abilities, Card, CARD_HEIGHT, NewCard, StatsChanged};
 use crate::font::TextStyles;
 use crate::ui::{easing, StateBackground, TranslationAnimation};
-use crate::util::{card_transform, cleanup_system, Coins, Level, PlayerHP, Z_BACKGROUND};
+use crate::util::{card_transform, cleanup_system, Coins, Corners, Level, PlayerHP, text_bundle_at_corner, Z_BACKGROUND, Z_CARD, Z_CARD_DRAG};
 
 pub struct FightPlugin;
 
@@ -19,6 +19,7 @@ impl Plugin for FightPlugin {
             .add_event::<StatsChange>()
             .add_event::<ApplyEffect>()
             .add_event::<PlayersAttack>()
+            .add_event::<GoldChange>()
             .add_system_set(
                 SystemSet::on_enter(AppState::Fight)
                     .with_system(setup_fight.system().label("setup_fight"))
@@ -36,6 +37,7 @@ impl Plugin for FightPlugin {
                     .with_system(remove_card_producer.system())
                     .with_system(apply_effect_producer.system())
                     .with_system(players_attack_producer.system())
+                    .with_system(gold_change_producer.system())
             )
             .add_system_set(
                 SystemSet::on_exit(AppState::Fight)
@@ -43,14 +45,15 @@ impl Plugin for FightPlugin {
             )
             .add_system_set(
                 SystemSet::on_exit(AppState::Fight)
-                    .before("on-exit").label("cleanup")
-                    .with_system(cleanup_system::<MySelf>.system())
-                    .with_system(cleanup_system::<MyFoe>.system())
+                    .after("on-exit").label("cleanup")
                     .with_system(cleanup_system::<FightSlot>.system())
                     .with_system(cleanup_system::<FightEventsStack>.system())
                     .with_system(cleanup_system::<StateBackground>.system())
                     .with_system(cleanup_system::<ExtraCoins>.system())
                     .with_system(cleanup_system::<Level>.system())
+                    .with_system(cleanup_system::<MyHP>.system())
+                    .with_system(cleanup_system::<FoeHP>.system())
+                    .with_system(cleanup_system::<FightBackup>.system())
             )
         ;
     }
@@ -60,7 +63,11 @@ struct WaitUntil(f64);
 
 struct ExtraCoins;
 
-#[derive(Copy, Clone)]
+struct MyHP;
+
+struct FoeHP;
+
+#[derive(Copy, Clone, PartialEq, Eq)]
 pub enum FightPlayers {
     MySelf,
     MyFoe,
@@ -105,16 +112,17 @@ pub struct FightEventsStack {
     stack: Vec<FightEvents>,
 }
 
-fn add_card(card: Card, slot: FightSlot, commands: &mut Commands, handles: &Res<Handles>) {
-    commands
+fn add_card(card: Card, slot: FightSlot, commands: &mut Commands, handles: &Res<Handles>, ev_new_card: &mut EventWriter<NewCard>) {
+    let id = commands
         .spawn_bundle(SpriteBundle {
-            material: card.card_type.handle(&handles),
+            material: card.base_card.handle(&handles),
             transform: card_transform(slot.x(), slot.y()),
             ..Default::default()
         })
         .insert(card)
         .insert(slot)
-    ;
+        .id();
+    ev_new_card.send(NewCard(id, card.clone()));
 }
 
 fn setup_fight(
@@ -122,6 +130,7 @@ fn setup_fight(
     handles: Res<Handles>,
     time: Res<Time>,
     mut global_data: ResMut<GlobalData>,
+    mut ev_new_card: EventWriter<NewCard>,
     queries: QuerySet<(
         Query<(Entity, &PlayerData), With<MySelf>>,
         Query<(Entity, &PlayerData), With<MyFoe>>,
@@ -140,14 +149,14 @@ fn setup_fight(
     let mut index = 0u8;
     for &card in &myself_cloned.board {
         add_card(card, FightSlot { who: FightSlotHeight::MySelf, index },
-                 &mut commands, &handles);
+                 &mut commands, &handles, &mut ev_new_card);
         index += 1;
     }
 
     let mut index = 0u8;
     for &card in &my_foe_cloned.board {
         add_card(card, FightSlot { who: FightSlotHeight::MyFoe, index },
-                 &mut commands, &handles);
+                 &mut commands, &handles, &mut ev_new_card);
         index += 1;
     }
 
@@ -189,7 +198,7 @@ fn setup_fight(
                         if player_id == my_id {
                             for mut card in myself_cloned.board.iter_mut() {
                                 if card.id == card_id {
-                                    card.at += 1;
+                                    card.atk += 1;
                                 }
                             }
                         }
@@ -198,39 +207,37 @@ fn setup_fight(
                 }
             }
             CombatEvents::GoldChange { player_id, change } => {
-                if player_id == my_id {
+                let who = if player_id == my_id {
                     myself_cloned.extra_coins = (myself_cloned.extra_coins as i32 + change) as u16;
-                } else {
-                    my_foe_cloned.extra_coins = (my_foe_cloned.extra_coins as i32 + change) as u16;
-                }
-            }
-            CombatEvents::PlayersAttack { att_id, change_def_hp } => {
-                let who = if att_id == my_id {
-                    myself_cloned.hp = (myself_cloned.hp as i32 + change_def_hp) as u16;
                     FightPlayers::MySelf
                 } else {
-                    my_foe_cloned.hp = (my_foe_cloned.hp as i32 + change_def_hp) as u16;
+                    my_foe_cloned.extra_coins = (my_foe_cloned.extra_coins as i32 + change) as u16;
                     FightPlayers::MyFoe
                 };
-                stack.push(FightEvents::PlayersAttack(PlayersAttack { who, change: change_def_hp }))
+                stack.push(FightEvents::GoldChange(GoldChange { who, change }));
+            }
+            CombatEvents::PlayersAttack { att_id, change_def_hp } => {
+                let on = if att_id == my_id {
+                    my_foe_cloned.hp = (my_foe_cloned.hp as i32 + change_def_hp) as u16;
+                    FightPlayers::MyFoe
+                } else {
+                    myself_cloned.hp = (myself_cloned.hp as i32 + change_def_hp) as u16;
+                    FightPlayers::MySelf
+                };
+                stack.push(FightEvents::PlayersAttack(PlayersAttack { on, change: change_def_hp }))
             }
         }
     }
 
     stack.reverse();
 
-    commands.entity(e_myself)
-        .remove::<MySelf>()
-        .insert(FightBackup { who: FightPlayers::MySelf });
-    commands.entity(e_my_foe)
-        .remove::<MyFoe>()
-        .insert(FightBackup { who: FightPlayers::MyFoe });
     commands.spawn()
         .insert(myself_cloned)
-        .insert(MySelf);
+        .insert(FightBackup { who: FightPlayers::MySelf });
     commands.spawn()
         .insert(my_foe_cloned)
-        .insert(MyFoe);
+        .insert(FightBackup { who: FightPlayers::MyFoe });
+
     commands.spawn().insert(FightEventsStack { stack });
     commands.spawn().insert(WaitUntil(time.seconds_since_startup()));
 }
@@ -252,78 +259,36 @@ fn draw_fight(
 
 
     commands
-        .spawn_bundle(TextBundle {
-            style: Style {
-                align_self: AlignSelf::FlexEnd,
-                position_type: PositionType::Absolute,
-                position: Rect {
-                    top: Val::Px(15.0),
-                    left: Val::Px(15.0),
-                    ..Default::default()
-                },
-                ..Default::default()
-            },
-            text: Text {
-                sections: vec![
-                    TextSection {
-                        value: format!("TURN {}\n", global_data.turn),
-                        style: text_styles.love_bug_small.clone(),
-                        ..Default::default()
-                    },
-                ],
-                ..Default::default()
-            },
-            transform: Default::default(),
-            ..Default::default()
-        })
+        .spawn_bundle(text_bundle_at_corner(
+            Corners::TopLeft,
+            vec![format!("TURN {}\n", global_data.turn)],
+            &text_styles.love_bug_small,
+        ))
         .insert(Level);
 
     commands
-        .spawn_bundle(TextBundle {
-            style: Style {
-                align_self: AlignSelf::FlexEnd,
-                position_type: PositionType::Absolute,
-                position: Rect {
-                    bottom: Val::Px(15.0),
-                    left: Val::Px(15.0),
-                    ..Default::default()
-                },
-                ..Default::default()
-            },
-            text: Text::with_section(
-                "EXTRA COINS: 0".to_string(),
-                text_styles.love_bug_small.clone(),
-                Default::default(),
-            ),
-            transform: Default::default(),
-            ..Default::default()
-        })
+        .spawn_bundle(text_bundle_at_corner(
+            Corners::BottomLeft,
+            vec!["EXTRA COINS: 0".to_string()],
+            &text_styles.love_bug_small,
+        ))
         .insert(ExtraCoins);
 
-    commands.spawn_bundle(TextBundle {
-        style: Style {
-            align_self: AlignSelf::FlexEnd,
-            position_type: PositionType::Absolute,
-            position: Rect {
-                bottom: Val::Px(15.0),
-                right: Val::Px(15.0),
-                ..Default::default()
-            },
-            ..Default::default()
-        },
-        text: Text {
-            sections: vec![
-                TextSection {
-                    value: format!("HP: "),
-                    style: text_styles.love_bug_small.clone(),
-                    ..Default::default()
-                },
-            ],
-            ..Default::default()
-        },
-        transform: Default::default(),
-        ..Default::default()
-    }).insert(PlayerHP);
+    commands.spawn_bundle(
+        text_bundle_at_corner(
+            Corners::BottomRight,
+            vec![format!("YOUR HP: 0")],
+            &text_styles.love_bug_small,
+        )
+    ).insert(MyHP);
+
+    commands.spawn_bundle(
+        text_bundle_at_corner(
+            Corners::TopRight,
+            vec![format!("YOUR FOE HP: 0")],
+            &text_styles.love_bug_small,
+        )
+    ).insert(FoeHP);
 }
 
 fn to_base_height(p: FightPlayers) -> FightSlotHeight {
@@ -368,7 +333,7 @@ struct GoldChange {
 }
 
 struct PlayersAttack {
-    who: FightPlayers,
+    on: FightPlayers,
     change: i32,
 }
 
@@ -378,6 +343,7 @@ enum FightEvents {
     StatsChange(StatsChange),
     ApplyEffect(ApplyEffect),
     PlayersAttack(PlayersAttack),
+    GoldChange(GoldChange),
 }
 
 fn event_dispatcher(
@@ -392,6 +358,7 @@ fn event_dispatcher(
     mut ew_stats_change: EventWriter<StatsChange>,
     mut ew_apply_effect: EventWriter<ApplyEffect>,
     mut ew_players_attack: EventWriter<PlayersAttack>,
+    mut ew_gold_change: EventWriter<GoldChange>,
     mut app_state: ResMut<State<AppState>>,
 ) {
     let mut should_dispatch = false;
@@ -419,6 +386,9 @@ fn event_dispatcher(
                 }
                 FightEvents::PlayersAttack(pa) => {
                     ew_players_attack.send(pa);
+                }
+                FightEvents::GoldChange(g) => {
+                    ew_gold_change.send(g);
                 }
             }
         } else {
@@ -450,8 +420,8 @@ fn translation_animation_producer(
 }
 
 fn translate_slots(t0: f64, from: FightSlot, to: FightSlot, duration: f64) -> TranslationAnimation {
-    let start = vec3(from.x(), from.y(), 0.);
-    let end = vec3(to.x(), to.y(), 0.);
+    let start = vec3(from.x(), from.y(), Z_CARD_DRAG);
+    let end = vec3(to.x(), to.y(), Z_CARD);
     TranslationAnimation {
         f: easing::Functions::CubicInOut,
         translation: end - start,
@@ -463,17 +433,19 @@ fn translate_slots(t0: f64, from: FightSlot, to: FightSlot, duration: f64) -> Tr
 
 fn stat_change_producer(
     mut er_stats_change: EventReader<StatsChange>,
-    mut query: Query<(&mut Card, &FightSlot)>,
+    mut query: Query<(Entity, &mut Card, &FightSlot)>,
     mut commands: Commands,
+    mut ev_stats: EventWriter<StatsChanged>,
     time: Res<Time>,
 ) {
     for event in er_stats_change.iter() {
-        for (mut card, &slot) in query.iter_mut() {
+        for (e, mut card, &slot) in query.iter_mut() {
             if slot == event.slot {
                 println!("Changing stats at slot {}.{}", slot.who, slot.index);
                 card.hp = (card.hp as i32 + event.hp) as u16;
-                card.at = (card.at as i32 + event.at) as u16;
+                card.atk = (card.atk as i32 + event.at) as u16;
                 commands.spawn().insert(WaitUntil(time.seconds_since_startup() + 0.5));
+                ev_stats.send(StatsChanged(e));
             }
         }
     }
@@ -530,40 +502,102 @@ fn players_attack_producer(
     mut er: EventReader<PlayersAttack>,
     mut commands: Commands,
     time: Res<Time>,
+    mut queries: QuerySet<(
+        Query<&mut PlayerData, With<MySelf>>,
+        Query<&mut PlayerData, With<MyFoe>>,
+    )>,
 ) {
-    if er.iter().count() != 0 {
+    for PlayersAttack { on, change } in er.iter() {
         commands.spawn().insert(WaitUntil(time.seconds_since_startup() + 0.5));
-        println!("PlayersAttack ... ");
+
+        let mut def_data =
+            if *on == FightPlayers::MySelf {
+                queries.q0_mut().single_mut().expect("Cannot find main player")
+            } else {
+                queries.q1_mut().single_mut().expect("Main player should have a foe")
+            };
+        def_data.hp = (def_data.hp as i32 + change) as u16;
     }
 }
 
 fn on_exit(
-    query: Query<(Entity, &FightBackup)>,
-    mut commands: Commands,
+    mut query: QuerySet<(
+        Query<&mut PlayerData, With<MySelf>>,
+        Query<&mut PlayerData, With<MyFoe>>,
+        Query<(&PlayerData, &FightBackup)>
+    )>
 ) {
-    for (e, &FightBackup { who }) in query.iter() {
+    let mut my_new_data = None;
+    let mut foe_new_data = None;
+    for (data, &FightBackup { who}) in query.q2().iter() {
         match who {
-            FightPlayers::MySelf => commands.entity(e).insert(MySelf),
-            FightPlayers::MyFoe => commands.entity(e).insert(MyFoe),
-        };
+            FightPlayers::MySelf => {
+                my_new_data = Some(data.clone());
+            }
+            FightPlayers::MyFoe => {
+                foe_new_data = Some(data.clone());
+            }
+        }
+    }
+
+    if let Some(data) = my_new_data {
+        let mut my_data = query.q0_mut().single_mut().expect("There should be one main player");
+        *my_data = data;
+    }
+    if let Some(data) = foe_new_data {
+        let mut foe_data = query.q1_mut().single_mut().expect("There should be one main player");
+        *foe_data = data;
     }
 }
 
+fn gold_change_producer(
+    mut er: EventReader<GoldChange>,
+    mut query: QuerySet<(
+        Query<&mut PlayerData, With<MySelf>>,
+        Query<&mut PlayerData, With<MyFoe>>,
+    )>,
+    mut commands: Commands,
+    time: Res<Time>,
+) {
+    let mut should_trigger_wait = false;
+    for GoldChange { who, change } in er.iter() {
+        let mut player_data = match who {
+            FightPlayers::MySelf => query.q0_mut().single_mut().expect("Cannot get main player"),
+            FightPlayers::MyFoe => query.q1_mut().single_mut().expect("Cannot get opponent"),
+        };
+        player_data.hp = (player_data.hp as i32 + change) as u16;
+        should_trigger_wait = true;
+    }
+    if should_trigger_wait {
+        commands.spawn().insert(WaitUntil(time.seconds_since_startup() + 0.5));
+    }
+}
 
 fn update_ui(
-    mut queries: QuerySet<(
+    player_queries: QuerySet<(
         Query<&PlayerData, With<MySelf>>,
+        Query<&PlayerData, With<MyFoe>>
+    )>,
+    mut text_queries: QuerySet<(
         Query<&mut Text, With<ExtraCoins>>,
-        Query<&mut Text, With<PlayerHP>>
+        Query<&mut Text, With<MyHP>>,
+        Query<&mut Text, With<FoeHP>>
     )>,
 ) {
-    let player_data = queries.q0().single().expect("No data for the player");
-    let extra_coins = player_data.coins;
-    let hp = player_data.hp;
+    let my_data = player_queries.q0().single().expect("No data for the player");
+    let extra_coins = my_data.extra_coins;
+    let my_hp = my_data.hp;
 
-    let mut coins_text = queries.q1_mut().single_mut().expect("Coins text not found.");
+    let foe_data = player_queries.q1().single().expect("Only one foe");
+    let foe_name = &foe_data.name;
+    let foe_hp = foe_data.hp;
+
+    let mut coins_text = text_queries.q0_mut().single_mut().expect("Coins text not found.");
     coins_text.sections[0].value = format!("EXTRA COINS: + {}", extra_coins);
 
-    let mut hp_text = queries.q2_mut().single_mut().expect("HP text not found.");
-    hp_text.sections[0].value = format!("HP: {}", hp);
+    let mut my_hp_text = text_queries.q1_mut().single_mut().expect("Coins text not found.");
+    my_hp_text.sections[0].value = format!("YOUR HP: {}", my_hp);
+
+    let mut foe_hp_text = text_queries.q2_mut().single_mut().expect("Coins text not found.");
+    foe_hp_text.sections[0].value = format!("{}'S HP: {}", foe_name, foe_hp);
 }

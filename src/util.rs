@@ -1,19 +1,26 @@
 use bevy::ecs::component::Component;
 use bevy::ecs::system::EntityCommands;
 use bevy::prelude::*;
-use crate::card::{CARD_SCALE, Card, CardTypes};
+
+use crate::card::{Card, CARD_SCALE, BaseCards};
+use crate::font::TextStyles;
 use crate::Handles;
 
 pub struct Coins;
+
 pub struct Level;
+
 pub struct PlayerHP;
 
 pub const Z_BACKGROUND: f32 = 0.;
-pub const Z_CARD: f32 = 2.;
-pub const Z_CARD_SWITCH: f32 = 2.1;
-pub const Z_CARD_DRAG: f32 = 3.;
-pub const Z_BOB: f32 = 4.;
-pub const Z_POPUP_BG: f32 = 20.;
+pub const Z_CARD: f32 = 10.;
+pub const Z_STATS_BG: f32 = 11.;
+pub const Z_STATS: f32 = 12.;
+pub const Z_CARD_SWITCH: f32 = 20.;
+pub const Z_CARD_DRAG: f32 = 25.;
+pub const Z_BOB: f32 = 100.;
+pub const Z_POPUP_BG: f32 = 120.;
+pub const Z_POPUP_TEXT: f32 = 121.;
 
 /// Returns coordinates for the sprite to be drawn at (`x`; `y`), with a given `z` index.
 pub fn xyz(x: f32, y: f32, size: (f32, f32), z_index: f32) -> Vec3 {
@@ -46,7 +53,7 @@ pub fn card_transform(x: f32, y: f32) -> Transform {
         translation: Vec3::new(x, y, 2.),
         scale: Vec3::new(CARD_SCALE, CARD_SCALE, 1.),
         ..Default::default()
-    }
+    };
 }
 
 pub trait Slot {
@@ -60,5 +67,42 @@ pub fn cleanup_system<T: Component>(
 ) {
     for e in q.iter() {
         commands.entity(e).despawn_recursive();
+    }
+}
+
+pub enum Corners {
+    TopLeft,
+    TopRight,
+    BottomLeft,
+    BottomRight,
+}
+
+pub fn text_bundle_at_corner(corner: Corners, values: Vec<String>, style: &TextStyle) -> TextBundle {
+    let dist = Val::Px(15.);
+    let position = match corner {
+        Corners::TopLeft => Rect { top: dist, left: dist, ..Default::default() },
+        Corners::TopRight => Rect { top: dist, right: dist, ..Default::default() },
+        Corners::BottomLeft => Rect { bottom: dist, left: dist, ..Default::default() },
+        Corners::BottomRight => Rect { bottom: dist, right: dist, ..Default::default() },
+    };
+    let sections: Vec<TextSection> = values.into_iter().map(|value|
+        TextSection {
+            value,
+            style: style.clone(),
+            ..Default::default()
+        }).collect();
+    TextBundle {
+        style: Style {
+            align_self: AlignSelf::FlexEnd,
+            position_type: PositionType::Absolute,
+            position,
+            ..Default::default()
+        },
+        text: Text {
+            sections,
+            ..Default::default()
+        },
+        transform: Default::default(),
+        ..Default::default()
     }
 }
