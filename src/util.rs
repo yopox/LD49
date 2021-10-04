@@ -3,6 +3,11 @@ use bevy::prelude::*;
 use crate::card::{CARD_SCALE, Card, CardTypes};
 use crate::Handles;
 
+pub const Z_CARD: f32 = 2.;
+pub const Z_CARD_SWITCH: f32 = 2.1;
+pub const Z_CARD_DRAG: f32 = 3.;
+pub const Z_POPUP_BG: f32 = 20.;
+
 /// Returns coordinates for the sprite to be drawn at (`x`; `y`), with a given `z` index.
 pub fn xyz(x: f32, y: f32, size: (f32, f32), z_index: f32) -> Vec3 {
     Vec3::new(x + size.0 / 2., y + size.1 / 2., z_index)

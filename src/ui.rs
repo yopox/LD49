@@ -2,7 +2,7 @@ use bevy::math::{vec2, vec3, Vec4Swizzles};
 use bevy::prelude::*;
 
 use crate::MainCamera;
-use crate::util::{cursor_pos, overlap};
+use crate::util::{cursor_pos, overlap, Z_CARD, Z_CARD_DRAG, Z_CARD_SWITCH};
 
 pub struct AnimationPlugin;
 
@@ -206,6 +206,7 @@ fn begin_drag(
                     commands.entity(e).insert(Dragged);
                     transform.translation.x = cursor.x;
                     transform.translation.y = cursor.y;
+                    transform.translation.z = Z_CARD_DRAG;
                     break;
                 }
             }
@@ -213,24 +214,24 @@ fn begin_drag(
     }
 }
 
-fn gen_animation(time: &Res<Time>, duration: f64, from: (f32, f32), to: (f32, f32)) -> TranslationAnimation {
+fn gen_animation(time: &Res<Time>, duration: f64, from: (f32, f32), to: (f32, f32), z_start: f32) -> TranslationAnimation {
     TranslationAnimation::from_start_end(
         time.seconds_since_startup(),
         duration,
-        vec3(from.0, from.1, 0.),
-        vec3(to.0, to.1, 0.),
+        vec3(from.0, from.1, z_start),
+        vec3(to.0, to.1, Z_CARD),
         easing::Functions::CubicOut,
     )
 }
 
 pub fn animate(time: &Res<Time>, from: (f32, f32), to: (f32, f32)) -> TranslationAnimation {
-    gen_animation(time, 1.3, from, to)
+    gen_animation(time, 1.3, from, to, Z_CARD_DRAG)
 }
 
 pub fn animate_switch(time: &Res<Time>, from: (f32, f32), to: (f32, f32)) -> TranslationAnimation {
-    gen_animation(time, 1., from, to)
+    gen_animation(time, 1., from, to, Z_CARD_SWITCH)
 }
 
 pub fn animate_fast(time: &Res<Time>, from: (f32, f32), to: (f32, f32)) -> TranslationAnimation {
-    gen_animation(time, 0.5, from, to)
+    gen_animation(time, 0.5, from, to, Z_CARD_DRAG)
 }

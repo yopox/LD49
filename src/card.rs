@@ -1,12 +1,11 @@
 use bevy::ecs::system::EntityCommands;
 use bevy::math::Vec4Swizzles;
 use bevy::prelude::*;
-
 use derive_more::Display;
 
 use crate::{Handles, HEIGHT, MainCamera, WIDTH};
 use crate::font::*;
-use crate::util::{cursor_pos, overlap};
+use crate::util::{cursor_pos, overlap, Z_POPUP_BG};
 
 pub const CARD_SCALE: f32 = 0.4;
 pub const CARD_WIDTH: f32 = 270. * CARD_SCALE;
@@ -134,16 +133,20 @@ impl Plugin for CardPlugin {
     fn build(&self, app: &mut AppBuilder) {
         app
             .add_startup_system_to_stage(StartupStage::PostStartup, init_popup.system())
-            .add_system(update_popup.system().after("drag:update"));
+            .add_system(update_popup.system().label("popup:update").after("drag:update"))
+            .add_system(update_background.system().before("popup:update"));
     }
 }
 
 struct Popup;
+struct PopupBackground;
 
 const POPUP_X_OFFSET: f32 = 20.;
+const POPUP_PADDING: f32 = 10.;
 
 fn init_popup(
     mut commands: Commands,
+    mut materials: ResMut<Assets<ColorMaterial>>,
     text_styles: Res<TextStyles>,
 ) {
     commands
@@ -155,6 +158,7 @@ fn init_popup(
                     left: Val::Px(20.0),
                     ..Default::default()
                 },
+                margin: Rect::all(Val::Px(POPUP_PADDING)),
                 ..Default::default()
             },
             text: Text {
@@ -181,6 +185,22 @@ fn init_popup(
             ..Default::default()
         })
         .insert(Popup);
+
+    commands
+        .spawn_bundle(SpriteBundle {
+            material: materials.add(Color::rgb(244. / 255., 237. / 255., 219. / 255.).into()),
+            sprite: Sprite::new(Vec2::new(120.0, 80.0)),
+            visible: Visible {
+                is_visible: false,
+                ..Default::default()
+            },
+            transform: Transform {
+                translation: Vec3::new(0., 0., Z_POPUP_BG),
+                ..Default::default()
+            },
+            ..Default::default()
+        })
+        .insert(PopupBackground);
 }
 
 fn update_popup(
@@ -217,5 +237,28 @@ fn update_popup(
         text.sections[2].value = format!("{}\n\n", card.description().to_string());
     } else {
         visible.is_visible = false;
+    }
+}
+
+fn update_background(
+    mut queries: QuerySet<(
+        Query<(&Visible, &Style, &CalculatedSize), With<Popup>>,
+        Query<(&mut Visible, &mut Sprite, &mut Transform), With<PopupBackground>>,
+    )>,
+) {
+    let (text_visible, style, calculated_size) = queries.q0().single().expect("Can't find popup.");
+    let visible = text_visible.is_visible;
+    let (x, y) = (style.position.left, style.position.top);
+    let size = calculated_size.size;
+
+    let (mut bg_visible, mut sprite, mut transform) = queries.q1_mut().single_mut().expect("Can't find popup background.");
+    bg_visible.is_visible = visible;
+    if visible {
+        sprite.size.x = size.width + 2. * POPUP_PADDING;
+        sprite.size.y = size.height + 2. * POPUP_PADDING;
+        if let (Val::Px(x), Val::Px(y)) = (x, y) {
+            transform.translation.x = x + size.width / 2. + POPUP_PADDING;
+            transform.translation.y = HEIGHT - y - size.height / 2. - POPUP_PADDING;
+        }
     }
 }
