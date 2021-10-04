@@ -1,12 +1,13 @@
 use bevy::math::vec3;
 use bevy::prelude::*;
 use derive_more::Display;
+use bevy_kira_audio::{Audio, AudioChannel, AudioPlugin};
 
 use crate::{AppState, GlobalData, HEIGHT, MySelf, PlayerData, WIDTH};
+use crate::loading::{AudioAssets, TextureAssets};
 use crate::abs::{CombatEvents, simulate_combat};
 use crate::card::{Abilities, Card, CARD_HEIGHT, NewCard, StatsChanged};
 use crate::font::TextStyles;
-use crate::loading::TextureAssets;
 use crate::ui::{easing, StateBackground, TranslationAnimation};
 use crate::util::{card_transform, cleanup_system, Coins, Corners, Level, PlayerHP, text_bundle_at_corner, Z_BACKGROUND, Z_CARD, Z_CARD_DRAG};
 
@@ -132,11 +133,16 @@ fn setup_fight(
     time: Res<Time>,
     mut global_data: ResMut<GlobalData>,
     mut ev_new_card: EventWriter<NewCard>,
+    audio: Res<Audio>,
+    songs: Res<AudioAssets>,
     queries: QuerySet<(
         Query<(Entity, &PlayerData), With<MySelf>>,
         Query<(Entity, &PlayerData), With<MyFoe>>,
     )>,
 ) {
+    audio.stop();
+    audio.play_looped_with_intro(songs.intro.clone(), songs.fight.clone());
+
     let (e_myself, myself) = queries.q0().single().expect("There should be only one player tagged MySelf");
     let mut myself_cloned = myself.clone();
     let myself_cloned_again = myself.clone();

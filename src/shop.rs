@@ -142,6 +142,8 @@ fn init(
     handles: Res<TextureAssets>,
     text_styles: Res<TextStyles>,
     colors: Res<ColorAssets>,
+    audio: Res<Audio>,
+    songs: Res<AudioAssets>,
     mut query: Query<&mut PlayerData, With<MySelf>>,
 ) {
     let mut player_data = query.single_mut().expect(
@@ -149,6 +151,13 @@ fn init(
     );
 
     global_data.turn += 1;
+
+    audio.stop();
+    if global_data.turn > 1 {
+        audio.play_looped_with_intro(songs.intro.clone(), songs.shop.clone());
+    } else {
+        audio.play_looped(songs.shop.clone());
+    }
 
     let shop_values = ShopValues::default();
     let coins = max(MIN_COINS, min(global_data.turn, shop_values.gold_limit))

@@ -127,6 +127,8 @@ pub struct AudioAssets {
     pub shop: Handle<AudioSource>,
     #[asset(path = "ost/2- combat.ogg")]
     pub fight: Handle<AudioSource>,
+    #[asset(path = "ost/SFX/TRANSI MUSIQUE.ogg")]
+    pub intro: Handle<AudioSource>,
 }
 
 pub struct ColorAssets {
