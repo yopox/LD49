@@ -8,7 +8,7 @@ use crate::font::TextStyles;
 use crate::GlobalData;
 use crate::Handles;
 use crate::ui::{animate, animate_switch, animate_fast, Draggable, Dragged, DROP_BORDER, Dropped, easing, TranslationAnimation, TransitionOver, StateBackground};
-use crate::util::{card_transform, cleanup_system, Coins, Level, overlap, Slot, Z_BACKGROUND, Z_BOB};
+use crate::util::{card_transform, cleanup_system, Coins, Corners, Level, overlap, PlayerHP, Slot, text_bundle_at_corner, Z_BACKGROUND, Z_BOB};
 
 pub struct ShopPlugin;
 
@@ -100,6 +100,7 @@ impl Plugin for ShopPlugin {
             )
             .add_system_set(
                 SystemSet::on_exit(AppState::Shop)
+                    .label("shop:cleanup")
                     .after("on_exit")
                     .with_system(cleanup_system::<ShopSlot>.system())
                     .with_system(cleanup_system::<SlotBorder>.system())
@@ -108,6 +109,7 @@ impl Plugin for ShopPlugin {
                     .with_system(cleanup_system::<CoinLimit>.system())
                     .with_system(cleanup_system::<Level>.system())
                     .with_system(cleanup_system::<Coins>.system())
+                    .with_system(cleanup_system::<PlayerHP>.system())
                     .with_system(cleanup_system::<BeganShop>.system())
                     .with_system(cleanup_system::<StateBackground>.system())
             )
@@ -219,61 +221,31 @@ fn init(
         .insert(Coins);
 
     commands
-        .spawn_bundle(TextBundle {
-            style: Style {
-                align_self: AlignSelf::FlexEnd,
-                position_type: PositionType::Absolute,
-                position: Rect {
-                    top: Val::Px(15.0),
-                    left: Val::Px(15.0),
-                    ..Default::default()
-                },
-                ..Default::default()
-            },
-            text: Text {
-                sections: vec![
-                    TextSection {
-                        value: format!("TURN {}\n", global_data.turn),
-                        style: text_styles.love_bug_small.clone(),
-                        ..Default::default()
-                    },
-                    TextSection {
-                        value: "".to_string(),
-                        style: text_styles.love_bug_small.clone(),
-                        ..Default::default()
-                    }
-                ],
-              ..Default::default()
-            },
-            transform: Default::default(),
-            ..Default::default()
-        })
+        .spawn_bundle(
+            text_bundle_at_corner(
+                Corners::BottomRight,
+                vec![format!("YOUR HP: {}", player_data.hp)],
+                &text_styles.love_bug_small,
+            )
+        )
+        .insert(PlayerHP);
+
+    commands
+        .spawn_bundle(
+            text_bundle_at_corner(
+                Corners::TopLeft,
+                vec![format!("TURN {}\n", global_data.turn), "".to_string()],
+                &text_styles.love_bug_small,
+            )
+        )
         .insert(Level);
 
-    commands.spawn_bundle(TextBundle {
-        style: Style {
-            // align_self: AlignSelf::FlexEnd,
-            position_type: PositionType::Absolute,
-            position: Rect {
-                top: Val::Px(15.0),
-                right: Val::Px(15.0),
-                ..Default::default()
-            },
-            ..Default::default()
-        },
-        text: Text {
-            sections: vec![
-                TextSection {
-                    value: format!("REMAINING TIME 60s\n"),
-                    style: text_styles.love_bug_small.clone(),
-                    ..Default::default()
-                },
-            ],
-            ..Default::default()
-        },
-        transform: Default::default(),
-        ..Default::default()
-    }).insert(BeganShop(time.seconds_since_startup()));
+    commands.spawn_bundle(
+        text_bundle_at_corner(
+            Corners::TopRight,
+            vec!["REMAINING TIME 60s".to_string()],
+            &text_styles.love_bug_small,
+        )).insert(BeganShop(time.seconds_since_startup()));
 }
 
 fn add_card(card: Card, slot: ShopSlot, commands: &mut Commands, handles: &Res<Handles>, ev_new_card: &mut EventWriter<NewCard>) -> Entity {

@@ -1,11 +1,15 @@
 use bevy::ecs::component::Component;
 use bevy::ecs::system::EntityCommands;
 use bevy::prelude::*;
-use crate::card::{CARD_SCALE, Card, CardTypes};
+
+use crate::card::{Card, CARD_SCALE, CardTypes};
+use crate::font::TextStyles;
 use crate::Handles;
 
 pub struct Coins;
+
 pub struct Level;
+
 pub struct PlayerHP;
 
 pub const Z_BACKGROUND: f32 = 0.;
@@ -47,7 +51,7 @@ pub fn card_transform(x: f32, y: f32) -> Transform {
         translation: Vec3::new(x, y, 2.),
         scale: Vec3::new(CARD_SCALE, CARD_SCALE, 1.),
         ..Default::default()
-    }
+    };
 }
 
 pub trait Slot {
@@ -61,5 +65,42 @@ pub fn cleanup_system<T: Component>(
 ) {
     for e in q.iter() {
         commands.entity(e).despawn_recursive();
+    }
+}
+
+pub enum Corners {
+    TopLeft,
+    TopRight,
+    BottomLeft,
+    BottomRight,
+}
+
+pub fn text_bundle_at_corner(corner: Corners, values: Vec<String>, style: &TextStyle) -> TextBundle {
+    let dist = Val::Px(15.);
+    let position = match corner {
+        Corners::TopLeft => Rect { top: dist, left: dist, ..Default::default() },
+        Corners::TopRight => Rect { top: dist, right: dist, ..Default::default() },
+        Corners::BottomLeft => Rect { bottom: dist, left: dist, ..Default::default() },
+        Corners::BottomRight => Rect { bottom: dist, right: dist, ..Default::default() },
+    };
+    let sections: Vec<TextSection> = values.into_iter().map(|value|
+        TextSection {
+            value,
+            style: style.clone(),
+            ..Default::default()
+        }).collect();
+    TextBundle {
+        style: Style {
+            align_self: AlignSelf::FlexEnd,
+            position_type: PositionType::Absolute,
+            position,
+            ..Default::default()
+        },
+        text: Text {
+            sections,
+            ..Default::default()
+        },
+        transform: Default::default(),
+        ..Default::default()
     }
 }

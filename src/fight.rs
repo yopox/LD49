@@ -7,7 +7,7 @@ use crate::abs::{CombatEvents, simulate_combat};
 use crate::card::{Abilities, Card, CARD_HEIGHT};
 use crate::font::TextStyles;
 use crate::ui::{easing, StateBackground, TranslationAnimation};
-use crate::util::{card_transform, cleanup_system, Coins, Level, PlayerHP, Z_BACKGROUND};
+use crate::util::{card_transform, cleanup_system, Coins, Corners, Level, PlayerHP, text_bundle_at_corner, Z_BACKGROUND};
 
 pub struct FightPlugin;
 
@@ -51,6 +51,8 @@ impl Plugin for FightPlugin {
                     .with_system(cleanup_system::<StateBackground>.system())
                     .with_system(cleanup_system::<ExtraCoins>.system())
                     .with_system(cleanup_system::<Level>.system())
+                    .with_system(cleanup_system::<MyHP>.system())
+                    .with_system(cleanup_system::<FoeHP>.system())
             )
         ;
     }
@@ -60,7 +62,11 @@ struct WaitUntil(f64);
 
 struct ExtraCoins;
 
-#[derive(Copy, Clone)]
+struct MyHP;
+
+struct FoeHP;
+
+#[derive(Copy, Clone, PartialEq, Eq)]
 pub enum FightPlayers {
     MySelf,
     MyFoe,
@@ -205,32 +211,27 @@ fn setup_fight(
                 }
             }
             CombatEvents::PlayersAttack { att_id, change_def_hp } => {
-                let who = if att_id == my_id {
-                    myself_cloned.hp = (myself_cloned.hp as i32 + change_def_hp) as u16;
-                    FightPlayers::MySelf
-                } else {
+                let on = if att_id == my_id {
                     my_foe_cloned.hp = (my_foe_cloned.hp as i32 + change_def_hp) as u16;
                     FightPlayers::MyFoe
+                } else {
+                    myself_cloned.hp = (myself_cloned.hp as i32 + change_def_hp) as u16;
+                    FightPlayers::MySelf
                 };
-                stack.push(FightEvents::PlayersAttack(PlayersAttack { who, change: change_def_hp }))
+                stack.push(FightEvents::PlayersAttack(PlayersAttack { on, change: change_def_hp }))
             }
         }
     }
 
     stack.reverse();
 
-    commands.entity(e_myself)
-        .remove::<MySelf>()
-        .insert(FightBackup { who: FightPlayers::MySelf });
-    commands.entity(e_my_foe)
-        .remove::<MyFoe>()
-        .insert(FightBackup { who: FightPlayers::MyFoe });
     commands.spawn()
         .insert(myself_cloned)
-        .insert(MySelf);
+        .insert(FightBackup { who: FightPlayers::MySelf });
     commands.spawn()
         .insert(my_foe_cloned)
-        .insert(MyFoe);
+        .insert(FightBackup { who: FightPlayers::MyFoe });
+
     commands.spawn().insert(FightEventsStack { stack });
     commands.spawn().insert(WaitUntil(time.seconds_since_startup()));
 }
@@ -252,78 +253,36 @@ fn draw_fight(
 
 
     commands
-        .spawn_bundle(TextBundle {
-            style: Style {
-                align_self: AlignSelf::FlexEnd,
-                position_type: PositionType::Absolute,
-                position: Rect {
-                    top: Val::Px(15.0),
-                    left: Val::Px(15.0),
-                    ..Default::default()
-                },
-                ..Default::default()
-            },
-            text: Text {
-                sections: vec![
-                    TextSection {
-                        value: format!("TURN {}\n", global_data.turn),
-                        style: text_styles.love_bug_small.clone(),
-                        ..Default::default()
-                    },
-                ],
-                ..Default::default()
-            },
-            transform: Default::default(),
-            ..Default::default()
-        })
+        .spawn_bundle(text_bundle_at_corner(
+            Corners::TopLeft,
+            vec![format!("TURN {}\n", global_data.turn)],
+            &text_styles.love_bug_small,
+        ))
         .insert(Level);
 
     commands
-        .spawn_bundle(TextBundle {
-            style: Style {
-                align_self: AlignSelf::FlexEnd,
-                position_type: PositionType::Absolute,
-                position: Rect {
-                    bottom: Val::Px(15.0),
-                    left: Val::Px(15.0),
-                    ..Default::default()
-                },
-                ..Default::default()
-            },
-            text: Text::with_section(
-                "EXTRA COINS: 0".to_string(),
-                text_styles.love_bug_small.clone(),
-                Default::default(),
-            ),
-            transform: Default::default(),
-            ..Default::default()
-        })
+        .spawn_bundle(text_bundle_at_corner(
+            Corners::BottomLeft,
+            vec!["EXTRA COINS: 0".to_string()],
+            &text_styles.love_bug_small,
+        ))
         .insert(ExtraCoins);
 
-    commands.spawn_bundle(TextBundle {
-        style: Style {
-            align_self: AlignSelf::FlexEnd,
-            position_type: PositionType::Absolute,
-            position: Rect {
-                bottom: Val::Px(15.0),
-                right: Val::Px(15.0),
-                ..Default::default()
-            },
-            ..Default::default()
-        },
-        text: Text {
-            sections: vec![
-                TextSection {
-                    value: format!("HP: "),
-                    style: text_styles.love_bug_small.clone(),
-                    ..Default::default()
-                },
-            ],
-            ..Default::default()
-        },
-        transform: Default::default(),
-        ..Default::default()
-    }).insert(PlayerHP);
+    commands.spawn_bundle(
+        text_bundle_at_corner(
+            Corners::BottomRight,
+            vec![format!("YOUR HP: 0")],
+            &text_styles.love_bug_small,
+        )
+    ).insert(MyHP);
+
+    commands.spawn_bundle(
+        text_bundle_at_corner(
+            Corners::TopRight,
+            vec![format!("YOUR FOE HP: 0")],
+            &text_styles.love_bug_small,
+        )
+    ).insert(FoeHP);
 }
 
 fn to_base_height(p: FightPlayers) -> FightSlotHeight {
@@ -368,7 +327,7 @@ struct GoldChange {
 }
 
 struct PlayersAttack {
-    who: FightPlayers,
+    on: FightPlayers,
     change: i32,
 }
 
@@ -530,10 +489,21 @@ fn players_attack_producer(
     mut er: EventReader<PlayersAttack>,
     mut commands: Commands,
     time: Res<Time>,
+    mut queries: QuerySet<(
+        Query<&mut PlayerData, With<MySelf>>,
+        Query<&mut PlayerData, With<MyFoe>>,
+    )>,
 ) {
-    if er.iter().count() != 0 {
+    for PlayersAttack { on, change } in er.iter() {
         commands.spawn().insert(WaitUntil(time.seconds_since_startup() + 0.5));
-        println!("PlayersAttack ... ");
+
+        let mut def_data =
+            if *on == FightPlayers::MySelf {
+                queries.q0_mut().single_mut().expect("Cannot find main player")
+            } else {
+                queries.q1_mut().single_mut().expect("Main player should have a foe")
+            };
+        def_data.hp = (def_data.hp as i32 + change) as u16;
     }
 }
 
@@ -551,19 +521,30 @@ fn on_exit(
 
 
 fn update_ui(
-    mut queries: QuerySet<(
+    player_queries: QuerySet<(
         Query<&PlayerData, With<MySelf>>,
+        Query<&PlayerData, With<MyFoe>>
+    )>,
+    mut text_queries: QuerySet<(
         Query<&mut Text, With<ExtraCoins>>,
-        Query<&mut Text, With<PlayerHP>>
+        Query<&mut Text, With<MyHP>>,
+        Query<&mut Text, With<FoeHP>>
     )>,
 ) {
-    let player_data = queries.q0().single().expect("No data for the player");
-    let extra_coins = player_data.coins;
-    let hp = player_data.hp;
+    let my_data = player_queries.q0().single().expect("No data for the player");
+    let extra_coins = my_data.coins;
+    let my_hp = my_data.hp;
 
-    let mut coins_text = queries.q1_mut().single_mut().expect("Coins text not found.");
+    let foe_data = player_queries.q1().single().expect("Only one foe");
+    let foe_name = &foe_data.name;
+    let foe_hp = foe_data.hp;
+
+    let mut coins_text = text_queries.q0_mut().single_mut().expect("Coins text not found.");
     coins_text.sections[0].value = format!("EXTRA COINS: + {}", extra_coins);
 
-    let mut hp_text = queries.q2_mut().single_mut().expect("HP text not found.");
-    hp_text.sections[0].value = format!("HP: {}", hp);
+    let mut my_hp_text = text_queries.q1_mut().single_mut().expect("Coins text not found.");
+    my_hp_text.sections[0].value = format!("YOUR HP: {}", my_hp);
+
+    let mut foe_hp_text = text_queries.q2_mut().single_mut().expect("Coins text not found.");
+    foe_hp_text.sections[0].value = format!("{}'S HP: {}", foe_name, foe_hp);
 }
