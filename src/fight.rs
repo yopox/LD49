@@ -4,7 +4,7 @@ use derive_more::Display;
 
 use crate::{AppState, GlobalData, Handles, HEIGHT, MySelf, PlayerData, WIDTH};
 use crate::abs::{CombatEvents, simulate_combat};
-use crate::card::{Abilities, Card, CARD_HEIGHT};
+use crate::card::{Abilities, Card, CARD_HEIGHT, NewCard};
 use crate::font::TextStyles;
 use crate::ui::{easing, StateBackground, TranslationAnimation};
 use crate::util::{card_transform, cleanup_system, Coins, Corners, Level, PlayerHP, text_bundle_at_corner, Z_BACKGROUND};
@@ -111,8 +111,8 @@ pub struct FightEventsStack {
     stack: Vec<FightEvents>,
 }
 
-fn add_card(card: Card, slot: FightSlot, commands: &mut Commands, handles: &Res<Handles>) {
-    commands
+fn add_card(card: Card, slot: FightSlot, commands: &mut Commands, handles: &Res<Handles>, ev_new_card: &mut EventWriter<NewCard>) {
+    let id = commands
         .spawn_bundle(SpriteBundle {
             material: card.base_card.handle(&handles),
             transform: card_transform(slot.x(), slot.y()),
@@ -120,7 +120,8 @@ fn add_card(card: Card, slot: FightSlot, commands: &mut Commands, handles: &Res<
         })
         .insert(card)
         .insert(slot)
-    ;
+        .id();
+    ev_new_card.send(NewCard(id, card.clone()));
 }
 
 fn setup_fight(
@@ -128,6 +129,7 @@ fn setup_fight(
     handles: Res<Handles>,
     time: Res<Time>,
     mut global_data: ResMut<GlobalData>,
+    mut ev_new_card: EventWriter<NewCard>,
     queries: QuerySet<(
         Query<(Entity, &PlayerData), With<MySelf>>,
         Query<(Entity, &PlayerData), With<MyFoe>>,
@@ -146,14 +148,14 @@ fn setup_fight(
     let mut index = 0u8;
     for &card in &myself_cloned.board {
         add_card(card, FightSlot { who: FightSlotHeight::MySelf, index },
-                 &mut commands, &handles);
+                 &mut commands, &handles, &mut ev_new_card);
         index += 1;
     }
 
     let mut index = 0u8;
     for &card in &my_foe_cloned.board {
         add_card(card, FightSlot { who: FightSlotHeight::MyFoe, index },
-                 &mut commands, &handles);
+                 &mut commands, &handles, &mut ev_new_card);
         index += 1;
     }
 
