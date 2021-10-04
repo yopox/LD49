@@ -3,6 +3,7 @@ use std::cmp::{max, min};
 use bevy::math::{vec2, vec3};
 use bevy::prelude::*;
 use bevy_kira_audio::{Audio, AudioChannel, AudioPlugin};
+use rand::Rng;
 
 use crate::{AppState, HEIGHT, MySelf, PlayerData, WIDTH};
 use crate::shop_rules::ShopRules;
@@ -330,16 +331,21 @@ const ABILITY_DISPLAY_TIME: f64 = 1.5;
 fn display_ability_animation(
     time: Res<Time>,
     mut stack_query: Query<(Entity, &mut AbilitiesStack)>,
-    card_query: Query<(&ShopSlot, &Card)>,
+    mut card_query: Query<(Entity, &ShopSlot, &mut Card)>,
     mut commands: Commands,
     handles: Res<TextureAssets>,
+    mut player_query: Query<&mut PlayerData, With<MySelf>>,
+    mut global_data: ResMut<GlobalData>,
+    mut ev_new_card: EventWriter<NewCard>,
+    mut ev_stats: EventWriter<StatsChanged>,
+    mut ev_gold_event: EventWriter<CoinsDiff>,
 ) {
     if let Ok((entity_stack, mut ab_stack)) = stack_query.single_mut() {
         let t = time.seconds_since_startup();
         if ab_stack.next_tick_after < t {
             if let Some((ability, card_id)) = ab_stack.stack.pop() {
                 let mut slot = None;
-                for (&s, &c) in card_query.iter() {
+                for (_, &s, mut c) in card_query.iter_mut() {
                     if c.id == card_id {
                         slot = Some(s);
                     }
@@ -348,9 +354,7 @@ fn display_ability_animation(
                 if let Some(slot) = slot {
                     let start = t;
                     let end = start + ABILITY_DISPLAY_TIME;
-                    let material = match ability {
-                        _ => handles.slot_border.clone()
-                    };
+                    let material = handles.slot_border.clone();
 
                     commands
                         .spawn_bundle(draw_effect(material, slot))
@@ -358,6 +362,119 @@ fn display_ability_animation(
                         .insert(RemoveAfter(end + 0.1));
 
                     ab_stack.next_tick_after = end;
+
+                    match ability {
+                        Abilities::Spawn => {
+                            let mut player_data = player_query.single_mut().expect("There should be a main player.");
+                            if player_data.board.len() < 7 {
+                                let base_card = if global_data.rng.gen() { BaseCards::SPID_1 } else { BaseCards::SPID_2 };
+                                let new_card = Card::new(base_card, global_data.next_card_id);
+                                global_data.next_card_id += 1;
+                                player_data.board.push(new_card);
+                                let new_slot = ShopSlot { row: ShopSlots::BOARD, id: player_data.board.len() as u8 - 1 };
+                                add_card(new_card, new_slot, &mut commands, &handles, &mut ev_new_card);
+                            }
+                        }
+                        Abilities::Cannibalism => {
+                            if let Some((eaten_entity, _, eaten_card)) = card_query.iter_mut()
+                                .filter(|(_, &s, card)|
+                                    card.base_card.family() == Families::Spiders
+                                        && card.id != card_id
+                                        && s.row == ShopSlots::BOARD)
+                                .min_by_key(|(_, _, card)| card.base_card.rank()) {
+                                commands.entity(eaten_entity)
+                                    .despawn_recursive();
+                                let change_hp = eaten_card.hp;
+                                let change_atk = eaten_card.atk;
+                                for (e, _, mut c) in card_query.iter_mut() {
+                                    if c.id == card_id {
+                                        c.hp += change_hp;
+                                        c.atk += change_atk;
+                                        ev_stats.send(StatsChanged(e));
+                                        break;
+                                    }
+                                }
+                            }
+                        }
+                        Abilities::Upgrade => {
+                            let index = slot.id;
+                            for (e, &s, mut card) in card_query.iter_mut() {
+                                if s.row == ShopSlots::BOARD
+                                    && (s.id == index + 1 || s.id + 1 == index) {
+                                    card.hp += 1;
+                                    card.atk += 1;
+                                    ev_stats.send(StatsChanged(e));
+                                }
+                            }
+                        }
+                        Abilities::Upload => {
+                            for (e, &s, mut card) in card_query.iter_mut() {
+                                if card.id == card_id {
+                                    if card.hp < 3 {
+                                        commands.entity(e)
+                                            .despawn_recursive();
+                                    } else if s.row == ShopSlots::BOARD {
+                                        card.hp -= 2;
+                                        ev_stats.send(StatsChanged(e))
+                                    }
+                                } else if card.base_card.family() == Families::Robots {
+                                    card.hp += 2;
+                                    ev_stats.send(StatsChanged(e));
+                                }
+                            }
+                        }
+                        Abilities::Download => {
+                            let mut change_hp = 0u16;
+                            let mut change_atk = 0u16;
+                            for (e, &s, mut card) in card_query.iter_mut() {
+                                if card.base_card.family() == Families::Robots && s.row == ShopSlots::BOARD && card.id != card_id {
+                                    change_hp += 1;
+                                    let atk = min(1, card.atk);
+                                    change_atk += atk;
+                                    card.atk -= atk;
+                                    card.hp -= 1;
+                                    if card.hp < 1 {
+                                        commands.entity(e).despawn_recursive()
+                                    } else {
+                                        ev_stats.send(StatsChanged(e));
+                                    }
+                                }
+                            }
+                            for (e, _, mut card) in card_query.iter_mut() {
+                                if card.id == card_id {
+                                    card.hp += change_hp;
+                                    card.atk += change_atk;
+                                    ev_stats.send(StatsChanged(e));
+                                }
+                            }
+                        }
+                        Abilities::Slimy => {
+                            for (e, _, mut card) in card_query.iter_mut() {
+                                if card.id == card_id {
+                                    card.hp += 1;
+                                    ev_stats.send(StatsChanged(e));
+                                }
+                            }
+                        }
+                        Abilities::Roots => {
+                            let mut num = 0u16;
+                            for (_, &s, mut card) in card_query.iter_mut() {
+                                if card.base_card.family() == Families::Mushrooms && s.row == ShopSlots::BOARD && card.id != card_id {
+                                    num += 1;
+                                }
+                            }
+                            for (e, _, mut card) in card_query.iter_mut() {
+                                if card.id == card_id {
+                                    card.hp += num as u16;
+                                    ev_stats.send(StatsChanged(e));
+                                }
+                            }
+                        }
+                        Abilities::GoldMine => {
+                            ev_gold_event.send(CoinsDiff(-1, true));
+                        }
+                        _ => {}
+                    }
                 }
             } else {
                 commands.spawn().insert(StartDraggableAt(t + 0.5));

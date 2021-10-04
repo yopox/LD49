@@ -132,6 +132,14 @@ pub enum Triggers {
     None,
 }
 
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub enum Families {
+    Merchants,
+    Spiders,
+    Robots,
+    Mushrooms,
+}
+
 impl BaseCards {
     pub fn name(&self) -> &'static str {
         match self {
@@ -204,6 +212,43 @@ impl BaseCards {
             BaseCards::ROB_6 => Abilities::None,
             BaseCards::ROB_7 => Abilities::Upload,
             BaseCards::ROB_8 => Abilities::Download,
+        }
+    }
+
+    pub fn family(&self) -> Families {
+        match self {
+            BaseCards::MUSH_1 => Families::Mushrooms,
+            BaseCards::MUSH_2 => Families::Mushrooms,
+            BaseCards::MUSH_3 => Families::Mushrooms,
+            BaseCards::MUSH_4 => Families::Mushrooms,
+            BaseCards::MUSH_5 => Families::Mushrooms,
+            BaseCards::MUSH_6 => Families::Mushrooms,
+            BaseCards::MUSH_7 => Families::Mushrooms,
+            BaseCards::MUSH_8 => Families::Mushrooms,
+            BaseCards::MERCH_1 => Families::Merchants,
+            BaseCards::MERCH_2 => Families::Merchants,
+            BaseCards::MERCH_3 => Families::Merchants,
+            BaseCards::MERCH_4 => Families::Merchants,
+            BaseCards::MERCH_5 => Families::Merchants,
+            BaseCards::MERCH_6 => Families::Merchants,
+            BaseCards::MERCH_7 => Families::Merchants,
+            BaseCards::MERCH_8 => Families::Merchants,
+            BaseCards::SPID_1 => Families::Spiders,
+            BaseCards::SPID_2 => Families::Spiders,
+            BaseCards::SPID_3 => Families::Spiders,
+            BaseCards::SPID_4 => Families::Spiders,
+            BaseCards::SPID_5 => Families::Spiders,
+            BaseCards::SPID_6 => Families::Spiders,
+            BaseCards::SPID_7 => Families::Spiders,
+            BaseCards::SPID_8 => Families::Spiders,
+            BaseCards::ROB_1 => Families::Robots,
+            BaseCards::ROB_2 => Families::Robots,
+            BaseCards::ROB_3 => Families::Robots,
+            BaseCards::ROB_4 => Families::Robots,
+            BaseCards::ROB_5 => Families::Robots,
+            BaseCards::ROB_6 => Families::Robots,
+            BaseCards::ROB_7 => Families::Robots,
+            BaseCards::ROB_8 => Families::Robots,
         }
     }
 
@@ -522,7 +567,7 @@ fn init_popup(
                     },
                     ..Default::default()
                 })
-                .insert(HpStat);
+                .insert(AtkStat);
         });
     }
 }

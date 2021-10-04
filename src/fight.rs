@@ -246,7 +246,7 @@ fn setup_fight(
         .insert(FightBackup { who: FightPlayers::MyFoe });
 
     commands.spawn().insert(FightEventsStack { stack });
-    commands.spawn().insert(WaitUntil(time.seconds_since_startup()));
+    commands.spawn().insert(WaitUntil(time.seconds_since_startup() + 2.));
 }
 
 fn draw_fight(
