@@ -109,6 +109,9 @@ pub struct TextureAssets {
     #[asset(path = "shop.png")]
     pub shop_bg: Handle<ColorMaterial>,
     #[asset(color_material)]
+    #[asset(path = "_TITLE.png")]
+    pub title_bg: Handle<ColorMaterial>,
+    #[asset(color_material)]
     #[asset(path = "fight.png")]
     pub fight_bg: Handle<ColorMaterial>,
     #[asset(color_material)]
