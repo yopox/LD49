@@ -104,6 +104,8 @@ impl Plugin for ShopPlugin {
     fn build(&self, app: &mut AppBuilder) {
         app
             .add_event::<CoinsDiff>()
+            .insert_resource(ShopFrozen(None))
+            .insert_resource(CanRefresh(false))
             .add_system_set(
                 SystemSet::on_enter(AppState::Shop)
                     .with_system(init.system().label("shop:init"))
@@ -144,7 +146,11 @@ impl Plugin for ShopPlugin {
     }
 }
 
+struct ShopFrozen(Option<Vec<Card>>);
+struct CanRefresh(bool);
+
 const SHOP_RULE_POPUP_DURATION: f64 = 1.;
+
 
 fn init(
     time: Res<Time>,
@@ -157,6 +163,7 @@ fn init(
     audio: Res<Audio>,
     songs: Res<AudioAssets>,
     mut query: Query<&mut PlayerData, With<MySelf>>,
+    mut frozen_shop: ResMut<ShopFrozen>,
 ) {
     let mut player_data = query.single_mut().expect(
         "There should be one and only one player with myself"
@@ -227,11 +234,23 @@ fn init(
                  &mut commands, &handles, &mut ev_new_card);
     }
 
-    for (i, &card) in ShopManager::shop_inventory(player_data.shop_level, &mut global_data.rng).iter().enumerate() {
-        add_card(Card::new(card, global_data.next_card_id),
+    let to_display_in_shop =
+        if frozen_shop.0.is_some() {
+            let v = frozen_shop.0.as_ref().unwrap().clone();
+            *frozen_shop = ShopFrozen(None);
+            v
+        } else {
+            ShopManager::shop_inventory(player_data.shop_level, &mut global_data.rng)
+                .iter().map(|&base_card| {
+                let id = global_data.next_card_id;
+                global_data.next_card_id += 1;
+                Card::new(base_card, id)
+            }).collect()
+        };
+    for (i, &card) in to_display_in_shop.iter().enumerate() {
+        add_card(card,
                  ShopSlot { row: ShopSlots::SHOP, id: i as u8 },
                  &mut commands, &handles, &mut ev_new_card);
-        global_data.next_card_id += 1;
     }
 
     let bob_slot = ShopSlot { row: ShopSlots::SELL, id: 0 };
@@ -816,6 +835,7 @@ fn start_draggable(
     time: Res<Time>,
     text_styles: Res<TextStyles>,
     mut commands: Commands,
+    mut can_refresh: ResMut<CanRefresh>,
 ) {
     for (es, &StartDraggableAt(t)) in start_draggable_query.iter() {
         if time.seconds_since_startup() > t {
@@ -834,6 +854,8 @@ fn start_draggable(
                     vec!["REMAINING TIME 60s".to_string()],
                     &text_styles.love_bug_small,
                 )).insert(BeganShop(time.seconds_since_startup()));
+
+            can_refresh.0 = true;
         }
     }
 }
