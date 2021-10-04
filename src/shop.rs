@@ -56,22 +56,24 @@ struct CoinLimit(u16);
 struct BeganShop(f64);
 const MIN_COINS: u16 = 3;
 
-struct ShopCosts {
+struct ShopValues {
     buy: i8,
     sell: i8,
     refresh: i8,
     freeze: i8,
     gold_limit: u16,
+    timer: f64,
 }
 
-impl Default for ShopCosts {
+impl Default for ShopValues {
     fn default() -> Self {
-        ShopCosts {
+        ShopValues {
             buy: 3,
             sell: -1,
             refresh: 1,
             freeze: 0,
             gold_limit: 10,
+            timer: 15.,
         }
     }
 }
@@ -105,7 +107,7 @@ impl Plugin for ShopPlugin {
                     .with_system(cleanup_system::<ShopSlot>.system())
                     .with_system(cleanup_system::<SlotBorder>.system())
                     .with_system(cleanup_system::<Bob>.system())
-                    .with_system(cleanup_system::<ShopCosts>.system())
+                    .with_system(cleanup_system::<ShopValues>.system())
                     .with_system(cleanup_system::<CoinLimit>.system())
                     .with_system(cleanup_system::<Level>.system())
                     .with_system(cleanup_system::<Coins>.system())
@@ -132,12 +134,12 @@ fn init(
 
     global_data.turn += 1;
 
-    let costs = ShopCosts::default();
-    let coins = max(MIN_COINS, min(global_data.turn, costs.gold_limit))
+    let shop_values = ShopValues::default();
+    let coins = max(MIN_COINS, min(global_data.turn, shop_values.gold_limit))
         + player_data.extra_coins;
     player_data.coins = coins;
     commands.insert_resource(CoinLimit(coins));
-    commands.insert_resource(costs);
+    commands.insert_resource(shop_values);
 
     for (i, &card) in player_data.board.iter().enumerate() {
         let added_card = add_card(card,
@@ -267,6 +269,7 @@ fn add_card(card: Card, slot: ShopSlot, commands: &mut Commands, handles: &Res<H
 
 fn update_ui(
     time: Res<Time>,
+    shop_values: Res<ShopValues>,
     coin_limit: Res<CoinLimit>,
     mut state: ResMut<State<AppState>>,
     mut queries: QuerySet<(
@@ -287,7 +290,7 @@ fn update_ui(
     level_text.sections[1].value = format!("SHOP LEVEL {}", level);
 
     let (mut time_text, BeganShop(t0)) = queries.q3_mut().single_mut().expect("TIme text not found.");
-    let remaining_time = 10. - time.seconds_since_startup() + *t0;
+    let remaining_time = shop_values.timer - time.seconds_since_startup() + *t0;
     time_text.sections[0].value = format!("REMAINING TIME {}s", remaining_time as u8);
 
     if remaining_time < 0. {
@@ -356,7 +359,7 @@ fn drop_card(
     mut commands: Commands,
     mut ev_dropped: EventReader<Dropped>,
     mut ev_coins: EventWriter<CoinsDiff>,
-    costs: Res<ShopCosts>,
+    shop_values: Res<ShopValues>,
     time: Res<Time>,
     mut queries: QuerySet<(
         Query<(Entity, &ShopSlot), With<SlotHovered>>,
@@ -407,7 +410,7 @@ fn drop_card(
                 let legal_move: bool = match origin_slot.row {
                     ShopSlots::HAND => destination_slot.row == ShopSlots::HAND || destination_slot.row == ShopSlots::BOARD && existing_entity.is_none(),
                     ShopSlots::BOARD => destination_slot.row == ShopSlots::BOARD || destination_slot.row == ShopSlots::SELL,
-                    ShopSlots::SHOP => destination_slot.row == ShopSlots::HAND && existing_entity.is_none() && data.coins >= costs.buy as u16,
+                    ShopSlots::SHOP => destination_slot.row == ShopSlots::HAND && existing_entity.is_none() && data.coins >= shop_values.buy as u16,
                     ShopSlots::SELL => false,
                 };
                 // println!["Move: {:?} {} -> {:?} {} : {}", &origin_slot.row, &origin_slot.id, &destination_slot.row, &destination_slot.id, legal_move];
@@ -423,7 +426,7 @@ fn drop_card(
                                 .insert(animate_fast(&time, (transform.translation.x, transform.translation.y), (destination_slot.x(), destination_slot.y())));
                             if destination_slot.row == ShopSlots::SELL { commands.entity(e).insert(Sold); }
                             if origin_slot.row == ShopSlots::SHOP && destination_slot.row == ShopSlots::HAND {
-                                ev_coins.send(CoinsDiff(costs.buy, false));
+                                ev_coins.send(CoinsDiff(shop_values.buy, false));
                             }
                         } else {
                             commands
@@ -455,7 +458,7 @@ fn drop_card(
 
 fn sell_card(
     mut commands: Commands,
-    costs: Res<ShopCosts>,
+    shop_values: Res<ShopValues>,
     mut ev_transition: EventReader<TransitionOver>,
     mut ev_coins: EventWriter<CoinsDiff>,
     mut cards: Query<(Entity, &ShopSlot), With<Card>>,
@@ -464,7 +467,7 @@ fn sell_card(
         for (e, slot) in cards.iter_mut() {
             if e == transition.0 && slot.row == ShopSlots::SELL {
                 commands.entity(transition.0).despawn_recursive();
-                ev_coins.send(CoinsDiff(costs.sell, false));
+                ev_coins.send(CoinsDiff(shop_values.sell, false));
             }
         }
     }
