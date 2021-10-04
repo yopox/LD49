@@ -80,7 +80,7 @@ pub enum Corners {
 }
 
 pub fn text_bundle_at_corner(corner: Corners, values: Vec<String>, style: &TextStyle) -> TextBundle {
-    let dist = Val::Px(15.);
+    let dist = Val::Px(32.);
     let position = match corner {
         Corners::TopLeft => Rect { top: dist, left: dist, ..Default::default() },
         Corners::TopRight => Rect { top: dist, right: dist, ..Default::default() },
