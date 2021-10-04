@@ -25,7 +25,7 @@ Rank | Name | ATK | HP | Effects
 3 | Amanita | 0 | 2 | (Toxic spores) **DEATH**: Toxic spores are released and kill the opponent
 3 | Boletus | 4 | 2 | (Sporocarp) **SOLD**: add a random Mush to your hand
 4 | Silex fungi | 6 | 2 | (Roots) **TURN**: Gets +1 HP for each allied Mush
-4 | Titanicus | 8 | 6 | (Gigantism) **KILL**: Gets +1 ATK
+4 | Titanicus | 5 | 6 | (Gigantism) **KILL**: Gets +1 ATK
 
 ## Merchants
 
@@ -48,8 +48,8 @@ Rank | Name | ATK | HP | Effects
 1 | Jumping Spider | 2 | 2 | —
 2 | Funnel Web Spider | 3 | 2 | (Trap) **HIT**: Lowers the opponents attacks by half
 2 | Goliath | 3 | 3 | —
-3 | Egg | 0 | 1 | (Multiplication) **DEATH**: Fills the board with rank lower rank spiders
-3 | Tarantula | 5 | 2 | (Poisonous) **HIT**: Bites its opponent and kills it
+3 | Egg | 0 | 1 | (Multiplication) **DEATH**: Fills the board with lower rank spiders
+3 | Tarantula | 5 | 2 | (Poisonous) **HIT**: Bites the opponent and kills it
 4 | Aragog | 4 | 6 | (Spawn) **TURN**: Spawns a new Rank 1 Spider
 4 | Australian black widow | 4 | 4 | (Cannibalism) **TURN**: Eats the lowest rank spider of the board, and gains its stats
 
