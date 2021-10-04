@@ -82,7 +82,7 @@ pub struct ShopValues {
     pub buy: i8,
     pub sell: i8,
     pub refresh: i8,
-    pub freeze: i8,
+    pub freeze: u16,
     pub gold_limit: u16,
     pub timer: f64,
 }
@@ -146,7 +146,8 @@ impl Plugin for ShopPlugin {
     }
 }
 
-struct ShopFrozen(Option<Vec<Card>>);
+struct ShopFrozen(Option<Vec<(u8, Card)>>);
+
 struct CanRefresh(bool);
 
 const SHOP_RULE_POPUP_DURATION: f64 = 1.;
@@ -241,13 +242,13 @@ fn init(
             v
         } else {
             ShopManager::shop_inventory(player_data.shop_level, &mut global_data.rng)
-                .iter().map(|&base_card| {
+                .iter().enumerate().map(|(i, &base_card)| {
                 let id = global_data.next_card_id;
                 global_data.next_card_id += 1;
-                Card::new(base_card, id)
+                (i as u8, Card::new(base_card, id))
             }).collect()
         };
-    for (i, &card) in to_display_in_shop.iter().enumerate() {
+    for (i, card) in to_display_in_shop {
         add_card(card,
                  ShopSlot { row: ShopSlots::SHOP, id: i as u8 },
                  &mut commands, &handles, &mut ev_new_card);
@@ -871,11 +872,12 @@ fn handle_buttons(
         Query<&Transform, With<FreezeButton>>,
         Query<&Transform, With<UpgradeButton>>,
     )>,
+    card_query: Query<(&Card, &ShopSlot)>,
     mut button_text: Query<&mut Text, With<ButtonText>>,
+    mut frozen_shop: ResMut<ShopFrozen>,
 ) {
     let window = windows.get_primary().unwrap();
     if let Some(cursor) = cursor_pos(window, queries.q0().single().unwrap()) {
-
         let mut player_data = player_data.single_mut().unwrap();
 
         let transform = queries.q1().single().unwrap();
@@ -886,7 +888,23 @@ fn handle_buttons(
 
         let transform = queries.q2().single().unwrap();
         if overlap(cursor.xyz(), transform.translation, (100., 100.)) {
-            button_text.single_mut().unwrap().sections[0].value = format!("Freeze cards for {} coins.", shop_values.freeze);
+            button_text.single_mut().unwrap().sections[0].value =
+                if frozen_shop.0.is_none() {
+                    format!("Freeze cards for {} coins.", shop_values.freeze)
+                } else {
+                    "Shop already frozen.".to_string()
+                };
+            if btn.just_pressed(MouseButton::Left) && player_data.coins >= shop_values.freeze && frozen_shop.0.is_none() {
+                player_data.coins -= shop_values.freeze;
+                frozen_shop.0 = Some(
+                    card_query.iter()
+                        .filter_map(|(&card, &slot)|
+                            if slot.row == ShopSlots::SHOP {
+                                Some((slot.id, card))
+                            } else { None })
+                        .collect()
+                );
+            };
             return;
         }
 
