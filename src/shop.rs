@@ -350,7 +350,7 @@ fn init(
 
     commands
         .spawn_bundle(Text2dBundle {
-            text: Text::with_section("Welcome to the shop!",
+            text: Text::with_section("",
                                      text_styles.love_bug_small.clone(),
                                      TextAlignment {
                                          horizontal: HorizontalAlign::Center,
@@ -877,9 +877,13 @@ fn handle_buttons(
                 _ => -1,
             };
             if value == -1 {
-                button_text.single_mut().unwrap().sections[0].value = "The shop can't be upgraded anymore.";
+                button_text.single_mut().unwrap().sections[0].value = "The shop can't be upgraded anymore.".to_string();
+                return;
+            } else {
+                button_text.single_mut().unwrap().sections[0].value = format!("Upgrade the shop for {} coins.", shop_values.freeze);
                 return;
             }
         }
     }
+    button_text.single_mut().unwrap().sections[0].value = "".to_string();
 }
