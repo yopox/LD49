@@ -9,6 +9,7 @@ use crate::{AppState, GlobalData, HEIGHT, MySelf, PlayerData, WIDTH};
 use crate::abs::{CombatEvents, simulate_combat};
 use crate::card::{Abilities, Card, CARD_HEIGHT, NewCard, StatsChanged};
 use crate::font::TextStyles;
+use crate::game_over::Won;
 use crate::loading::{AudioAssets, TextureAssets};
 use crate::ui::{easing, StateBackground, TranslationAnimation};
 use crate::util::{card_transform, cleanup_system, Coins, Corners, Level, PlayerHP, text_bundle_at_corner, Z_BACKGROUND, Z_CARD, Z_CARD_DRAG};
@@ -364,12 +365,12 @@ enum FightEvents {
 }
 
 fn event_dispatcher(
+    mut commands: Commands,
     time: Res<Time>,
     mut queries: QuerySet<(
         Query<&mut FightEventsStack>,
         Query<(Entity, &WaitUntil)>
     )>,
-    mut commands: Commands,
     mut ew_translation: EventWriter<Translation>,
     mut ew_remove_card: EventWriter<RemoveCard>,
     mut ew_stats_change: EventWriter<StatsChange>,
@@ -419,6 +420,7 @@ fn event_dispatcher(
                 if data.hp > 0 { last_alive = false; break; }
             }
             if dead || last_alive {
+                commands.insert_resource(Won(last_alive));
                 app_state.set(AppState::GameOver);
             } else {
                 app_state.set(AppState::Shop);

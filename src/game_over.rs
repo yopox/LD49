@@ -3,6 +3,7 @@ use bevy_kira_audio::{Audio, AudioChannel, AudioPlugin};
 
 use crate::{AppState, HEIGHT, PlayerData, WIDTH, MySelf};
 use crate::card::NewCard;
+use crate::fight::FightBackup;
 use crate::font::TextStyles;
 use crate::loading::{AudioAssets, TextureAssets};
 use crate::ui::StateBackground;
@@ -43,14 +44,21 @@ impl Plugin for GameOverPlugin {
 
 struct Over;
 
+pub struct Won(pub bool);
+
 fn init(
     mut commands: Commands,
     text_styles: Res<TextStyles>,
     mut player_data: Query<&PlayerData, With<MySelf>>,
     mut ev_card: EventWriter<NewCard>,
+    won: Res<Won>,
     handles: Res<TextureAssets>,
     audio: Res<Audio>,
     songs: Res<AudioAssets>,
+    players: QuerySet<(
+        Query<&PlayerData, With<MySelf>>,
+        Query<&PlayerData, (Without<MySelf>, Without<FightBackup>)>,
+    )>,
 ) {
     audio.stop();
     audio.play_looped(songs.title.clone());
@@ -73,6 +81,20 @@ fn init(
                                  }),
         transform: Transform {
             translation: Vec3::new(WIDTH / 2., HEIGHT / 4., 1.),
+            ..Default::default()
+        },
+        ..Default::default()
+    }).insert(Over);
+
+    commands.spawn_bundle(Text2dBundle {
+        text: Text::with_section(if won.0 { "You won!" } else { "You lost!" },
+                                 text_styles.subtitle.clone(),
+                                 TextAlignment {
+                                     horizontal: HorizontalAlign::Center,
+                                     ..Default::default()
+                                 }),
+        transform: Transform {
+            translation: Vec3::new(WIDTH / 2., 3. * HEIGHT / 4., 1.),
             ..Default::default()
         },
         ..Default::default()

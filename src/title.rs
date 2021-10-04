@@ -85,7 +85,7 @@ fn setup_data(
     commands.spawn().insert(
         PlayerData {
             id: 0,
-            name: "H".to_string(),
+            name: "YOU".to_string(),
             hand: vec![
                 Card::new(BaseCards::SPID_8, 0),
             ],
@@ -98,7 +98,7 @@ fn setup_data(
     commands.spawn().insert(
         PlayerData {
             id: 1,
-            name: "L".to_string(),
+            name: "IA".to_string(),
             board: vec![
                 Card::new(BaseCards::SPID_8, 3),
                 Card::new(BaseCards::MERCH_8, 4),
