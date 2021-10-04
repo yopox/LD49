@@ -427,7 +427,7 @@ impl Card {
             BaseCards::SPID_5 => Card { id, base_card: card_type, atk: 0, hp: 1, ..Default::default() },
             BaseCards::SPID_6 => Card { id, base_card: card_type, atk: 5, hp: 2, ..Default::default() },
             BaseCards::SPID_7 => Card { id, base_card: card_type, atk: 4, hp: 6, ..Default::default() },
-            BaseCards::SPID_8 => Card { id, base_card: card_type, atk: 99, hp: 99, ..Default::default() },
+            BaseCards::SPID_8 => Card { id, base_card: card_type, atk: 5, hp: 6, ..Default::default() },
             BaseCards::ROB_1 => Card { id, base_card: card_type, atk: 1, hp: 1, ..Default::default() },
             BaseCards::ROB_2 => Card { id, base_card: card_type, atk: 1, hp: 3, ..Default::default() },
             BaseCards::ROB_3 => Card { id, base_card: card_type, atk: 3, hp: 1, ..Default::default() },
@@ -555,7 +555,7 @@ fn init_popup(
                                                  ..Default::default()
                                              }),
                     transform: Transform {
-                        translation: Vec3::new(-CARD_WIDTH / 4. / CARD_SCALE + 32., -CARD_HEIGHT / 2. / CARD_SCALE + 23., Z_STATS),
+                        translation: Vec3::new(CARD_WIDTH / 4. / CARD_SCALE + 10., -CARD_HEIGHT / 2. / CARD_SCALE + 23., Z_STATS),
                         ..Default::default()
                     },
                     ..Default::default()
@@ -571,7 +571,7 @@ fn init_popup(
                                                  ..Default::default()
                                              }),
                     transform: Transform {
-                        translation: Vec3::new(CARD_WIDTH / 4. / CARD_SCALE + 10., -CARD_HEIGHT / 2. / CARD_SCALE + 23., Z_STATS),
+                        translation: Vec3::new(-CARD_WIDTH / 4. / CARD_SCALE + 32., -CARD_HEIGHT / 2. / CARD_SCALE + 23., Z_STATS),
                         ..Default::default()
                     },
                     ..Default::default()
