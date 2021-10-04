@@ -2,7 +2,7 @@ use bevy::ecs::component::Component;
 use bevy::ecs::system::EntityCommands;
 use bevy::prelude::*;
 
-use crate::card::{Card, CARD_SCALE, CardTypes};
+use crate::card::{Card, CARD_SCALE, BaseCards};
 use crate::font::TextStyles;
 use crate::Handles;
 

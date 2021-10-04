@@ -17,7 +17,7 @@ pub const CARD_WIDTH: f32 = 270. * CARD_SCALE;
 pub const CARD_HEIGHT: f32 = 420. * CARD_SCALE;
 
 #[derive(Copy, Clone)]
-pub enum CardTypes {
+pub enum BaseCards {
     MUSH_8,
     MERCH_8,
     SPID_8,
@@ -26,7 +26,7 @@ pub enum CardTypes {
 
 #[derive(Copy, Clone)]
 pub struct Card {
-    pub card_type: CardTypes,
+    pub base_card: BaseCards,
     pub id: u32,
     pub hp: u16,
     pub at: u16,
@@ -36,7 +36,7 @@ pub struct Card {
 impl Default for Card {
     fn default() -> Self {
         Card {
-            card_type: CardTypes::MERCH_8,
+            base_card: BaseCards::MERCH_8,
             id: 0,
             hp: 0,
             at: 0,
@@ -87,76 +87,77 @@ pub enum Triggers {
     None,
 }
 
-impl CardTypes {
+impl BaseCards {
     pub fn name(&self) -> &'static str {
         match self {
-            CardTypes::MUSH_8 => "Titanicus",
-            CardTypes::MERCH_8 => "Tujilus",
-            CardTypes::SPID_8 => "Australian black widow",
-            CardTypes::ROB_8 => "SkyBot",
+            BaseCards::MUSH_8 => "Titanicus",
+            BaseCards::MERCH_8 => "Tujilus",
+            BaseCards::SPID_8 => "Australian black widow",
+            BaseCards::ROB_8 => "SkyBot",
         }
     }
 
     pub fn ability(&self) -> Abilities {
         match self {
-            CardTypes::MUSH_8 => Abilities::Gigantism,
-            CardTypes::MERCH_8 => Abilities::Dexterity,
-            CardTypes::SPID_8 => Abilities::Cannibalism,
-            CardTypes::ROB_8 => Abilities::Download,
+            BaseCards::MUSH_8 => Abilities::Gigantism,
+            BaseCards::MERCH_8 => Abilities::Dexterity,
+            BaseCards::SPID_8 => Abilities::Cannibalism,
+            BaseCards::ROB_8 => Abilities::Download,
         }
     }
 
     pub fn description(&self) -> &'static str {
         match self {
-            CardTypes::MUSH_8 => "Gets +1 ATK.",
-            CardTypes::MERCH_8 => "Attacks another enemy once.",
-            CardTypes::SPID_8 => "Eats the lowest rank spider\nof the board, and gains\nits stats.",
-            CardTypes::ROB_8 => "Steals +1 HP and +1 ATK\nfrom each allied robot.",
+            BaseCards::MUSH_8 => "Gets +1 ATK.",
+            BaseCards::MERCH_8 => "Attacks another enemy once.",
+            BaseCards::SPID_8 => "Eats the lowest rank spider\nof the board, and gains\nits stats.",
+            BaseCards::ROB_8 => "Steals +1 HP and +1 ATK\nfrom each allied robot.",
         }
     }
 
     pub fn rank(&self) -> u8 {
         match self {
-            CardTypes::MUSH_8 => 4,
-            CardTypes::MERCH_8 => 4,
-            CardTypes::SPID_8 => 4,
-            CardTypes::ROB_8 => 4,
+            BaseCards::MUSH_8 => 4,
+            BaseCards::MERCH_8 => 4,
+            BaseCards::SPID_8 => 4,
+            BaseCards::ROB_8 => 4,
         }
     }
 
     pub fn trigger(&self) -> Triggers {
         match self {
-            CardTypes::MUSH_8 => Triggers::Kill,
-            CardTypes::MERCH_8 => Triggers::Survived,
-            CardTypes::SPID_8 => Triggers::Turn,
-            CardTypes::ROB_8 => Triggers::Turn,
+            BaseCards::MUSH_8 => Triggers::Kill,
+            BaseCards::MERCH_8 => Triggers::Survived,
+            BaseCards::SPID_8 => Triggers::Turn,
+            BaseCards::ROB_8 => Triggers::Turn,
         }
     }
 
     pub fn handle(&self, handles: &Res<Handles>) -> Handle<ColorMaterial> {
         match self {
-            CardTypes::MUSH_8 => handles.mush_8.clone(),
-            CardTypes::MERCH_8 => handles.merch_8.clone(),
-            CardTypes::SPID_8 => handles.spid_8.clone(),
-            CardTypes::ROB_8 => handles.rob_8.clone(),
+            BaseCards::MUSH_8 => handles.mush_8.clone(),
+            BaseCards::MERCH_8 => handles.merch_8.clone(),
+            BaseCards::SPID_8 => handles.spid_8.clone(),
+            BaseCards::ROB_8 => handles.rob_8.clone(),
         }
     }
 }
 
 impl Card {
-    pub(crate) fn new(card_type: CardTypes, id: u32) -> Self {
+    pub(crate) fn new(card_type: BaseCards, id: u32) -> Self {
         match card_type {
-            CardTypes::MUSH_8 => Card { id, card_type, at: 8, hp: 6, ..Default::default() },
-            CardTypes::MERCH_8 => Card { id, card_type, at: 5, hp: 9, ..Default::default() },
-            CardTypes::SPID_8 => Card { id, card_type, at: 4, hp: 4, ..Default::default() },
-            CardTypes::ROB_8 => Card { id, card_type, at: 3, hp: 3, ..Default::default() },
+            BaseCards::MUSH_8 => Card { id, base_card: card_type, at: 8, hp: 6, ..Default::default() },
+            BaseCards::MERCH_8 => Card { id, base_card: card_type, at: 5, hp: 9, ..Default::default() },
+            BaseCards::SPID_8 => Card { id, base_card: card_type, at: 4, hp: 4, ..Default::default() },
+            BaseCards::ROB_8 => Card { id, base_card: card_type, at: 3, hp: 3, ..Default::default() },
         }
     }
 }
 
 pub(crate) struct CardPlugin;
 
-pub struct NewCard(pub Entity, pub CardTypes);
+pub struct NewCard(pub Entity, pub Card);
+pub struct StatsChanged(pub Entity);
 
 struct Prepare;
 
@@ -164,6 +165,7 @@ impl Plugin for CardPlugin {
     fn build(&self, app: &mut AppBuilder) {
         app
             .add_event::<NewCard>()
+            .add_event::<StatsChanged>()
             .add_system(init_popup.system().label("popup:init"))
             .add_system(update_size.system().label("popup:update").after("popup:init"))
             .add_system(update_popup_visibility.system().after("popup:update"));
@@ -172,8 +174,9 @@ impl Plugin for CardPlugin {
 }
 
 struct Popup;
-
 struct PopupBackground;
+struct Stats;
+struct StatsBackground;
 
 const POPUP_X_OFFSET: f32 = 20.;
 const POPUP_PADDING: f32 = 10.;
@@ -185,22 +188,22 @@ fn init_popup(
     text_styles: Res<TextStyles>,
 ) {
     for new_card in ev_new_card.iter() {
-        let card_type = new_card.1;
+        let base_card = new_card.1.base_card;
         commands.entity(new_card.0).with_children(|parent| {
             let text = parent
                 .spawn_bundle(Text2dBundle {
                     text: Text {
                         sections: vec![
                             TextSection {
-                                value: format!("{}\n\n", card_type.name().to_string()),
+                                value: format!("{}\n\n", base_card.name().to_string()),
                                 style: text_styles.love_bug_small.clone(),
                             },
                             TextSection {
-                                value: format!("{}\n\n", card_type.ability().to_string()),
+                                value: format!("{}\n\n", base_card.ability().to_string()),
                                 style: text_styles.bird_seed_small.clone(),
                             },
                             TextSection {
-                                value: format!("{}\n\n", card_type.description().to_string()),
+                                value: format!("{}\n\n", base_card.description().to_string()),
                                 style: text_styles.bird_seed_small.clone(),
                             },
                         ],

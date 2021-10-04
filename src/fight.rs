@@ -114,7 +114,7 @@ pub struct FightEventsStack {
 fn add_card(card: Card, slot: FightSlot, commands: &mut Commands, handles: &Res<Handles>) {
     commands
         .spawn_bundle(SpriteBundle {
-            material: card.card_type.handle(&handles),
+            material: card.base_card.handle(&handles),
             transform: card_transform(slot.x(), slot.y()),
             ..Default::default()
         })

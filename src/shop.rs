@@ -163,12 +163,12 @@ fn init(
                                   &mut commands, &handles, &mut ev_new_card);
     }
 
-    let added_card_1 = add_card(Card::new(CardTypes::MERCH_8, global_data.next_card_id),
+    let added_card_1 = add_card(Card::new(BaseCards::MERCH_8, global_data.next_card_id),
                                 ShopSlot { row: ShopSlots::SHOP, id: 0 },
                                 &mut commands, &handles, &mut ev_new_card);
     global_data.next_card_id += 1;
 
-    let added_card_2 = add_card(Card::new(CardTypes::MUSH_8, global_data.next_card_id),
+    let added_card_2 = add_card(Card::new(BaseCards::MUSH_8, global_data.next_card_id),
                                 ShopSlot { row: ShopSlots::SHOP, id: 1 },
                                 &mut commands, &handles, &mut ev_new_card);
     global_data.next_card_id += 1;
@@ -274,7 +274,7 @@ fn init(
 fn add_card(card: Card, slot: ShopSlot, commands: &mut Commands, handles: &Res<Handles>, ev_new_card: &mut EventWriter<NewCard>) -> Entity {
     let id = commands
         .spawn_bundle(SpriteBundle {
-            material: card.card_type.handle(&handles),
+            material: card.base_card.handle(&handles),
             transform: card_transform(slot.x(), slot.y()),
             ..Default::default()
         })
@@ -284,7 +284,7 @@ fn add_card(card: Card, slot: ShopSlot, commands: &mut Commands, handles: &Res<H
         })
         .insert(slot)
         .id();
-    ev_new_card.send(NewCard(id, card.card_type));
+    ev_new_card.send(NewCard(id, card.clone()));
     return id;
 }
 

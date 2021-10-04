@@ -46,7 +46,7 @@ fn apply_effect(card_index: u8, opponent_card_index: u8, player_hb: &mut PlayerD
     let opponent_card = opponent_hb.board[opponent_card_index as usize];
     let player_id = player_hb.id;
     let opponent_id = opponent_hb.id;
-    let ability = player_card.card_type.ability();
+    let ability = player_card.base_card.ability();
     let mut events = vec![
         CombatEvents::ApplyAbility { card_index, player_id, ability, card_id: player_card.id }
     ];
@@ -90,9 +90,9 @@ fn simulate_attack<T: Rng>(att_card_index: usize, att_hb: &mut PlayerData, def_h
     let mut replay = false;
 
     let att_card = &att_hb.board[att_card_index];
-    let att_card_trigger = att_card.card_type.trigger();
+    let att_card_trigger = att_card.base_card.trigger();
     let def_card = &def_hb.board[def_card_index as usize];
-    let def_card_trigger = def_card.card_type.trigger();
+    let def_card_trigger = def_card.base_card.trigger();
 
     let att_card_index = att_card_index as u8;
 
@@ -148,7 +148,7 @@ fn simulate_attack<T: Rng>(att_card_index: usize, att_hb: &mut PlayerData, def_h
         if att_card_trigger == Triggers::Survived || att_card_trigger == Triggers::Hit {
             events.append(&mut apply_effect(att_card_index, def_card_index, att_hb, def_hb));
 
-            if att_card_trigger == Triggers::Survived && att_hb.board[att_card_index as usize].card_type.ability() == Abilities::Dexterity {
+            if att_card_trigger == Triggers::Survived && att_hb.board[att_card_index as usize].base_card.ability() == Abilities::Dexterity {
                 replay = true;
             }
         }
@@ -186,7 +186,7 @@ pub(crate) fn simulate_combat<T: Rng>(mut hb1: PlayerData, mut hb2: PlayerData, 
     }
 
     let (winner, loser) = if hb1.board.is_empty() { (hb2, hb1) } else { (hb1, hb2) };
-    let change_def_hp = -min2(loser.hp as i32, winner.board.iter().map(|card| card.card_type.rank() as i32).sum());
+    let change_def_hp = -min2(loser.hp as i32, winner.board.iter().map(|card| card.base_card.rank() as i32).sum());
     events.push(CombatEvents::PlayersAttack {
         att_id: winner.id,
         change_def_hp,
