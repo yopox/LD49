@@ -117,6 +117,12 @@ pub struct TextureAssets {
     #[asset(color_material)]
     #[asset(path = "MERCHANT STORE.png")]
     pub shop_bob: Handle<ColorMaterial>,
+    #[asset(color_material)]
+    #[asset(path = "ACTIONS BIS1.png")]
+    pub heart: Handle<ColorMaterial>,
+    #[asset(color_material)]
+    #[asset(path = "ACTIONS BIS2.png")]
+    pub exclamation: Handle<ColorMaterial>,
 }
 
 #[derive(AssetCollection)]

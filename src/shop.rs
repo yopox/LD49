@@ -312,7 +312,7 @@ fn draw_effect(material: Handle<ColorMaterial>, slot: ShopSlot) -> SpriteBundle 
             is_transparent: true,
         },
         transform: Transform {
-            translation: vec3(slot.x(), slot.y(), Z_ABILITY),
+            translation: vec3(slot.x() - CARD_WIDTH / 2. - 16., slot.y() + CARD_HEIGHT / 2., Z_ABILITY),
             ..Default::default()
         },
         ..Default::default()
@@ -352,7 +352,7 @@ fn display_ability_animation(
                 if let Some(slot) = slot {
                     let start = t;
                     let end = start + ABILITY_DISPLAY_TIME;
-                    let material = handles.slot_border.clone();
+                    let material = handles.heart.clone();
 
                     commands
                         .spawn_bundle(draw_effect(material, slot))
