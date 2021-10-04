@@ -8,11 +8,9 @@ use crate::font::TextStyles;
 use crate::GlobalData;
 use crate::Handles;
 use crate::ui::{animate, animate_switch, animate_fast, Draggable, Dragged, DROP_BORDER, Dropped, easing, TranslationAnimation, TransitionOver, StateBackground};
-use crate::util::{card_transform, cleanup_system, overlap, Slot, Z_BACKGROUND, Z_BOB};
+use crate::util::{card_transform, cleanup_system, Coins, Level, overlap, Slot, Z_BACKGROUND, Z_BOB};
 
 pub struct ShopPlugin;
-pub struct Coins;
-pub struct Level;
 
 /// Cards are in one of these spots
 #[derive(PartialEq, Clone, Copy, Debug)]
