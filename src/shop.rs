@@ -153,11 +153,7 @@ fn init(
     global_data.turn += 1;
 
     audio.stop();
-    if global_data.turn > 1 {
-        audio.play_looped_with_intro(songs.intro.clone(), songs.shop.clone());
-    } else {
-        audio.play_looped(songs.shop.clone());
-    }
+    audio.play_looped_with_intro(songs.intro.clone(), songs.shop.clone());
 
     let shop_values = ShopValues::default();
     let coins = max(MIN_COINS, min(global_data.turn, shop_values.gold_limit))
