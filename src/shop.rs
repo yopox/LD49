@@ -69,7 +69,7 @@ impl Default for ShopValues {
     fn default() -> Self {
         ShopValues {
             buy: 3,
-            sell: -1,
+            sell: -2,
             refresh: 1,
             freeze: 0,
             gold_limit: 10,
@@ -480,7 +480,10 @@ fn update_coins(
 ) {
     for diff in ev_coins.iter() {
         let (mut player_data) = data.single_mut().expect("Can't find player data.");
-        if !diff.1 && diff.0 < 0 && player_data.coins + (-diff.0) as u16 > coin_limit.0 { break; }
+        if !diff.1 && diff.0 < 0 && player_data.coins + (-diff.0) as u16 > coin_limit.0 {
+            player_data.coins = max(coin_limit.0, player_data.coins);
+            break;
+        }
         player_data.coins = (player_data.coins as i16 - diff.0 as i16) as u16;
     }
 }
