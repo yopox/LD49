@@ -2,6 +2,7 @@ use rand::distributions::{Distribution, Standard};
 use rand::Rng;
 use crate::shop::ShopValues;
 
+#[derive(PartialEq)]
 pub enum ShopRules {
     BuyPlus,
     BuyMinus,
@@ -71,8 +72,12 @@ impl ShopRules {
         }
     }
 
-    pub fn random(values: &mut ShopValues) -> &'static str {
-        let rule: ShopRules = rand::random();
+    pub fn random(values: &mut ShopValues, turn: u16) -> &'static str {
+        let mut rule: ShopRules = rand::random();
+        if turn == 1 {
+            // Prevent not being able to buy cards on first turn
+            while rule == ShopRules::BuyPlus { rule = rand::random(); }
+        }
         rule.edit_values(values);
         return rule.description();
     }
