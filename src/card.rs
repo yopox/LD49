@@ -7,9 +7,9 @@ use bevy::prelude::*;
 use bevy::text::Text2dSize;
 use derive_more::Display;
 
-use crate::{HEIGHT, WIDTH, MainCamera, AppState};
-use crate::loading::{ColorAssets, TextureAssets};
+use crate::{AppState, HEIGHT, MainCamera, WIDTH};
 use crate::font::*;
+use crate::loading::{ColorAssets, TextureAssets};
 use crate::ui::Dragged;
 use crate::util::{cursor_pos, overlap, Z_POPUP_BG, Z_POPUP_TEXT, Z_STATS};
 
@@ -471,8 +471,11 @@ impl Plugin for CardPlugin {
 }
 
 struct Popup;
+
 struct PopupBackground;
+
 struct AtkStat;
+
 struct HpStat;
 
 const POPUP_X_OFFSET: f32 = 20.;
@@ -493,11 +496,17 @@ fn init_popup(
                     text: Text {
                         sections: vec![
                             TextSection {
-                                value: format!("{}\n\n", base_card.name().to_string()),
+                                value: format!("{}\n", base_card.name().to_string()),
                                 style: text_styles.love_bug_small.clone(),
                             },
                             TextSection {
-                                value: format!("{}\n\n", base_card.ability().to_string()),
+                                value: format!("Level {}\n\n", base_card.rank()),
+                                style: text_styles.bird_seed_small.clone(),
+                            },
+                            TextSection {
+                                value: if base_card.ability() != Abilities::None {
+                                    format!("Ability: {}\nTriggered on {}\n\n", base_card.ability().to_string(), base_card.trigger().to_string())
+                                } else { "".to_string() },
                                 style: text_styles.bird_seed_small.clone(),
                             },
                             TextSection {
