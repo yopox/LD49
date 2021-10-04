@@ -3,10 +3,10 @@ use bevy::prelude::*;
 use derive_more::Display;
 
 use crate::{AppState, GlobalData, HEIGHT, MySelf, PlayerData, WIDTH};
-use crate::loading::TextureAssets;
 use crate::abs::{CombatEvents, simulate_combat};
 use crate::card::{Abilities, Card, CARD_HEIGHT, NewCard, StatsChanged};
 use crate::font::TextStyles;
+use crate::loading::TextureAssets;
 use crate::ui::{easing, StateBackground, TranslationAnimation};
 use crate::util::{card_transform, cleanup_system, Coins, Corners, Level, PlayerHP, text_bundle_at_corner, Z_BACKGROUND, Z_CARD, Z_CARD_DRAG};
 
@@ -262,7 +262,7 @@ fn draw_fight(
     commands
         .spawn_bundle(text_bundle_at_corner(
             Corners::TopLeft,
-            vec![format!("TURN {}\n", global_data.turn)],
+            vec![format!("TURN {}\n", global_data.turn), "FIGHT\n".to_string()],
             &text_styles.love_bug_small,
         ))
         .insert(Level);
@@ -270,7 +270,7 @@ fn draw_fight(
     commands
         .spawn_bundle(text_bundle_at_corner(
             Corners::BottomLeft,
-            vec!["EXTRA COINS: 0".to_string()],
+            vec!["".to_string()],
             &text_styles.love_bug_small,
         ))
         .insert(ExtraCoins);
@@ -278,7 +278,7 @@ fn draw_fight(
     commands.spawn_bundle(
         text_bundle_at_corner(
             Corners::BottomRight,
-            vec![format!("YOUR HP: 0")],
+            vec![format!("YOUR HP 0")],
             &text_styles.love_bug_small,
         )
     ).insert(MyHP);
@@ -286,7 +286,7 @@ fn draw_fight(
     commands.spawn_bundle(
         text_bundle_at_corner(
             Corners::TopRight,
-            vec![format!("YOUR FOE HP: 0")],
+            vec![format!("YOUR FOE HP 0")],
             &text_styles.love_bug_small,
         )
     ).insert(FoeHP);
@@ -530,7 +530,7 @@ fn on_exit(
 ) {
     let mut my_new_data = None;
     let mut foe_new_data = None;
-    for (data, &FightBackup { who}) in query.q2().iter() {
+    for (data, &FightBackup { who }) in query.q2().iter() {
         match who {
             FightPlayers::MySelf => {
                 my_new_data = Some(data.clone());
@@ -594,11 +594,15 @@ fn update_ui(
     let foe_hp = foe_data.hp;
 
     let mut coins_text = text_queries.q0_mut().single_mut().expect("Coins text not found.");
-    coins_text.sections[0].value = format!("EXTRA COINS: + {}", extra_coins);
+    coins_text.sections[0].value = if extra_coins == 0 {
+        "".to_string()
+    } else {
+        format!("EXTRA COINS {}", extra_coins)
+    };
 
     let mut my_hp_text = text_queries.q1_mut().single_mut().expect("Coins text not found.");
-    my_hp_text.sections[0].value = format!("YOUR HP: {}", my_hp);
+    my_hp_text.sections[0].value = format!("YOUR HP {}", my_hp);
 
     let mut foe_hp_text = text_queries.q2_mut().single_mut().expect("Coins text not found.");
-    foe_hp_text.sections[0].value = format!("{}'S HP: {}", foe_name, foe_hp);
+    foe_hp_text.sections[0].value = format!("{}'S HP {}", foe_name, foe_hp);
 }

@@ -280,7 +280,7 @@ fn init(
         .spawn_bundle(
             text_bundle_at_corner(
                 Corners::BottomRight,
-                vec![format!("YOUR HP: {}", player_data.hp)],
+                vec![format!("YOUR HP {}", player_data.hp)],
                 &text_styles.love_bug_small,
             )
         )
