@@ -133,4 +133,5 @@ pub struct AudioAssets {
 
 pub struct ColorAssets {
     pub background: Handle<ColorMaterial>,
+    pub black: Handle<ColorMaterial>,
 }

@@ -5,6 +5,7 @@ use bevy::prelude::*;
 use bevy_kira_audio::{Audio, AudioChannel, AudioPlugin};
 
 use crate::{AppState, HEIGHT, MySelf, PlayerData, WIDTH};
+use crate::shop_rules::ShopRules;
 use crate::card::*;
 use crate::font::TextStyles;
 use crate::GlobalData;
@@ -67,20 +68,20 @@ struct BeganShop(f64);
 
 const MIN_COINS: u16 = 3;
 
-struct ShopValues {
-    buy: i8,
-    sell: i8,
-    refresh: i8,
-    freeze: i8,
-    gold_limit: u16,
-    timer: f64,
+pub struct ShopValues {
+    pub buy: i8,
+    pub sell: i8,
+    pub refresh: i8,
+    pub freeze: i8,
+    pub gold_limit: u16,
+    pub timer: f64,
 }
 
 impl Default for ShopValues {
     fn default() -> Self {
         ShopValues {
             buy: 3,
-            sell: -2,
+            sell: -1,
             refresh: 1,
             freeze: 0,
             gold_limit: 10,
@@ -132,7 +133,7 @@ impl Plugin for ShopPlugin {
     }
 }
 
-const INSTABILITY_POPUP_DURATION: f64 = 5.;
+const SHOP_RULE_POPUP_DURATION: f64 = 10.;
 
 fn init(
     time: Res<Time>,
@@ -155,8 +156,10 @@ fn init(
     audio.stop();
     audio.play_looped_with_intro(songs.intro.clone(), songs.shop.clone());
 
-    let shop_values = ShopValues::default();
-    let coins = max(MIN_COINS, min(global_data.turn, shop_values.gold_limit))
+    let mut shop_values = ShopValues::default();
+    let rule = ShopRules::random(&mut shop_values);
+
+    let coins = max(MIN_COINS, min(global_data.turn + 2, shop_values.gold_limit))
         + player_data.extra_coins;
     player_data.coins = coins;
     player_data.extra_coins = 0;
@@ -167,21 +170,21 @@ fn init(
 
     commands.spawn_bundle(Text2dBundle {
         text: Text::with_section(
-            "Instability at this turn:\n\nNONE :)".to_string(),
-            text_styles.bird_seed_small.clone(),
+            format!("You find a note on the door of the shop:\n\n{}", rule),
+            text_styles.note.clone(),
             TextAlignment {
                 horizontal: HorizontalAlign::Center,
-                ..Default::default()
+                vertical: VerticalAlign::Center,
             }),
         transform: Transform {
             translation: Vec3::new(WIDTH / 2., HEIGHT / 2., Z_ANNOUNCEMENT_BG),
             ..Default::default()
         },
         ..Default::default()
-    }).insert(RemoveAfter(t0 + INSTABILITY_POPUP_DURATION));
+    }).insert(RemoveAfter(t0 + SHOP_RULE_POPUP_DURATION));
     commands.spawn_bundle(SpriteBundle {
-        material: colors.background.clone(),
-        sprite: Sprite::new(Vec2::new(WIDTH / 2., HEIGHT / 2.)),
+        material: colors.black.clone(),
+        sprite: Sprite::new(Vec2::new(WIDTH / 1.5, HEIGHT / 2.)),
         visible: Visible {
             is_visible: true,
             is_transparent: false,
@@ -191,10 +194,10 @@ fn init(
             ..Default::default()
         },
         ..Default::default()
-    }).insert(RemoveAfter(t0 + INSTABILITY_POPUP_DURATION));
+    }).insert(RemoveAfter(t0 + SHOP_RULE_POPUP_DURATION));
 
     commands.spawn().insert(AbilitiesStack {
-        next_tick_after: t0 + INSTABILITY_POPUP_DURATION + 0.5,
+        next_tick_after: t0 + SHOP_RULE_POPUP_DURATION + 0.5,
         stack: player_data.board.iter()
             .filter(|card| card.base_card.trigger() == Triggers::Turn)
             .map(|card| (card.base_card.ability(), card.id))

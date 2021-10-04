@@ -20,6 +20,7 @@ mod title;
 mod ui;
 mod fight;
 mod loading;
+mod shop_rules;
 
 pub const WIDTH: f32 = 1280.;
 pub const HEIGHT: f32 = 720.;
@@ -80,6 +81,7 @@ fn setup(
 
     commands.insert_resource(ColorAssets {
         background: materials.add(Color::rgb(244. / 255., 237. / 255., 219. / 255.).into()),
+        black: materials.add(Color::rgb(0., 0., 0.).into()),
     });
 }
 
