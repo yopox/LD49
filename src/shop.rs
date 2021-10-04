@@ -358,9 +358,9 @@ fn highlight_slot(
     }
     let hovered_slot = hovered_slot.unwrap();
     let possible = match origin_slot.row {
-        ShopSlots::SHOP => hovered_slot.row == ShopSlots::HAND,
+        ShopSlots::SHOP => hovered_slot.row == ShopSlots::HAND || hovered_slot.row == ShopSlots::BOARD,
         ShopSlots::BOARD => hovered_slot.row == ShopSlots::BOARD || hovered_slot.row == ShopSlots::SELL,
-        ShopSlots::HAND => hovered_slot.row == ShopSlots::BOARD || hovered_slot.row == ShopSlots::HAND,
+        ShopSlots::HAND => hovered_slot.row == ShopSlots::BOARD || hovered_slot.row == ShopSlots::HAND || hovered_slot.row == ShopSlots::SELL,
         ShopSlots::SELL => false,
     };
 
@@ -428,9 +428,11 @@ fn drop_card(
                 let (data) = queries.q2().single().expect("Can't find player data.");
 
                 let legal_move: bool = match origin_slot.row {
-                    ShopSlots::HAND => destination_slot.row == ShopSlots::HAND || destination_slot.row == ShopSlots::BOARD && existing_entity.is_none(),
+                    ShopSlots::HAND => destination_slot.row == ShopSlots::HAND ||
+                        destination_slot.row == ShopSlots::SELL ||
+                        destination_slot.row == ShopSlots::BOARD && existing_entity.is_none(),
                     ShopSlots::BOARD => destination_slot.row == ShopSlots::BOARD || destination_slot.row == ShopSlots::SELL,
-                    ShopSlots::SHOP => destination_slot.row == ShopSlots::HAND && existing_entity.is_none() && data.coins >= shop_values.buy as u16,
+                    ShopSlots::SHOP => (destination_slot.row == ShopSlots::HAND || destination_slot.row == ShopSlots::BOARD) && existing_entity.is_none() && data.coins >= shop_values.buy as u16,
                     ShopSlots::SELL => false,
                 };
                 // println!["Move: {:?} {} -> {:?} {} : {}", &origin_slot.row, &origin_slot.id, &destination_slot.row, &destination_slot.id, legal_move];
@@ -445,7 +447,7 @@ fn drop_card(
                                 .entity(e)
                                 .insert(animate_fast(&time, (transform.translation.x, transform.translation.y), (destination_slot.x(), destination_slot.y())));
                             if destination_slot.row == ShopSlots::SELL { commands.entity(e).insert(Sold); }
-                            if origin_slot.row == ShopSlots::SHOP && destination_slot.row == ShopSlots::HAND {
+                            else if origin_slot.row == ShopSlots::SHOP {
                                 ev_coins.send(CoinsDiff(shop_values.buy, false));
                             }
                         } else {
