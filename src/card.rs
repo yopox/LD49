@@ -11,7 +11,7 @@ use crate::{HEIGHT, WIDTH, MainCamera, AppState};
 use crate::loading::{ColorAssets, TextureAssets};
 use crate::font::*;
 use crate::ui::Dragged;
-use crate::util::{cursor_pos, overlap, Z_POPUP_BG, Z_POPUP_TEXT, Z_STATS, Z_STATS_BG};
+use crate::util::{cursor_pos, overlap, Z_POPUP_BG, Z_POPUP_TEXT, Z_STATS};
 
 pub const CARD_SCALE: f32 = 0.4;
 pub const CARD_WIDTH: f32 = 270. * CARD_SCALE;
@@ -382,7 +382,7 @@ impl Card {
             BaseCards::SPID_5 => Card { id, base_card: card_type, atk: 0, hp: 1, ..Default::default() },
             BaseCards::SPID_6 => Card { id, base_card: card_type, atk: 5, hp: 2, ..Default::default() },
             BaseCards::SPID_7 => Card { id, base_card: card_type, atk: 4, hp: 6, ..Default::default() },
-            BaseCards::SPID_8 => Card { id, base_card: card_type, atk: 4, hp: 4, ..Default::default() },
+            BaseCards::SPID_8 => Card { id, base_card: card_type, atk: 99, hp: 99, ..Default::default() },
             BaseCards::ROB_1 => Card { id, base_card: card_type, atk: 1, hp: 1, ..Default::default() },
             BaseCards::ROB_2 => Card { id, base_card: card_type, atk: 1, hp: 3, ..Default::default() },
             BaseCards::ROB_3 => Card { id, base_card: card_type, atk: 3, hp: 1, ..Default::default() },
@@ -429,7 +429,6 @@ struct Popup;
 struct PopupBackground;
 struct AtkStat;
 struct HpStat;
-struct StatsBackground;
 
 const POPUP_X_OFFSET: f32 = 20.;
 const POPUP_PADDING: f32 = 10.;
@@ -494,27 +493,15 @@ fn init_popup(
                 .insert(Prepare);
 
             parent
-                .spawn_bundle(SpriteBundle {
-                    material: colors.background.clone(),
-                    sprite: Sprite::new(Vec2::new(254.0, 50.0)),
-                    transform: Transform {
-                        translation: Vec3::new(0., (-CARD_HEIGHT / 2. + 12.) / CARD_SCALE, Z_STATS_BG),
-                        ..Default::default()
-                    },
-                    ..Default::default()
-                })
-                .insert(StatsBackground);
-
-            parent
                 .spawn_bundle(Text2dBundle {
-                    text: Text::with_section(format!("{} HP", new_card.1.hp),
+                    text: Text::with_section(format!("{}", new_card.1.hp),
                                              text_styles.stats.clone(),
                                              TextAlignment {
                                                  horizontal: HorizontalAlign::Center,
                                                  ..Default::default()
                                              }),
                     transform: Transform {
-                        translation: Vec3::new(-CARD_WIDTH / 4. / CARD_SCALE + 6., -CARD_HEIGHT / 2. / CARD_SCALE + 10., Z_STATS),
+                        translation: Vec3::new(-CARD_WIDTH / 4. / CARD_SCALE + 24., -CARD_HEIGHT / 2. / CARD_SCALE + 24., Z_STATS),
                         ..Default::default()
                     },
                     ..Default::default()
@@ -523,14 +510,14 @@ fn init_popup(
 
             parent
                 .spawn_bundle(Text2dBundle {
-                    text: Text::with_section(format!("{} ATK", new_card.1.atk),
+                    text: Text::with_section(format!("{}", new_card.1.atk),
                                              text_styles.stats.clone(),
                                              TextAlignment {
                                                  horizontal: HorizontalAlign::Center,
                                                  ..Default::default()
                                              }),
                     transform: Transform {
-                        translation: Vec3::new(CARD_WIDTH / 4. / CARD_SCALE - 6., -CARD_HEIGHT / 2. / CARD_SCALE + 10., Z_STATS),
+                        translation: Vec3::new(CARD_WIDTH / 4. / CARD_SCALE - 16., -CARD_HEIGHT / 2. / CARD_SCALE + 24., Z_STATS),
                         ..Default::default()
                     },
                     ..Default::default()
@@ -624,14 +611,14 @@ fn update_stats(
         if let Ok(card) = cards.get(event.0) {
             for (parent, mut text) in texts.q0_mut().iter_mut() {
                 if parent.0 == event.0 {
-                    text.sections[0].value = format!("{} ATK", card.atk);
+                    text.sections[0].value = format!("{}", card.atk);
                     break;
                 }
             }
 
             for (parent, mut text) in texts.q1_mut().iter_mut() {
                 if parent.0 == event.0 {
-                    text.sections[0].value = format!("{} HP", card.hp);
+                    text.sections[0].value = format!("{}", card.hp);
                     break;
                 }
             }

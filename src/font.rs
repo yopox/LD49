@@ -18,7 +18,7 @@ pub fn load_fonts(
     commands.insert_resource(TextStyles {
         stats: TextStyle {
             font: skullboy.clone(),
-            font_size: 12.0,
+            font_size: 15.0,
             color: Color::BLACK
         },
         bird_seed_small: TextStyle {

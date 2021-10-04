@@ -13,8 +13,7 @@ pub struct PlayerHP;
 
 pub const Z_BACKGROUND: f32 = 0.;
 pub const Z_CARD: f32 = 10.;
-pub const Z_STATS_BG: f32 = 10.1;
-pub const Z_STATS: f32 = 10.2;
+pub const Z_STATS: f32 = 10.1;
 pub const Z_ABILITY: f32 = 15.;
 pub const Z_CARD_SWITCH: f32 = 20.;
 pub const Z_CARD_DRAG: f32 = 25.;
