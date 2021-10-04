@@ -10,8 +10,9 @@ use crate::font::TextStyles;
 use crate::GlobalData;
 use crate::loading::TextureAssets;
 use crate::loading::AudioAssets;
-use crate::ui::{animate, animate_fast, animate_switch, Draggable, Dragged, DROP_BORDER, Dropped, easing, StateBackground, TransitionOver, TranslationAnimation};
-use crate::util::{card_transform, cleanup_system, Coins, Corners, Level, overlap, PlayerHP, Slot, text_bundle_at_corner, Z_BACKGROUND, Z_BOB};
+use crate::Handles;
+use crate::ui::{animate, animate_fast, animate_switch, Draggable, Dragged, DROP_BORDER, Dropped, easing, RemoveAfter, StateBackground, TransitionOver, TranslationAnimation};
+use crate::util::{card_transform, cleanup_system, Coins, Corners, Level, overlap, PlayerHP, Slot, text_bundle_at_corner, Z_ABILITY, Z_BACKGROUND, Z_BOB};
 
 pub struct ShopPlugin;
 
@@ -24,7 +25,7 @@ enum ShopSlots {
     SELL,
 }
 
-#[derive(PartialEq, Clone)]
+#[derive(PartialEq, Copy, Clone)]
 struct ShopSlot {
     row: ShopSlots,
     id: u8,
@@ -105,6 +106,8 @@ impl Plugin for ShopPlugin {
                     .with_system(update_ui.system())
                     .with_system(sell_card.system().after("drop"))
                     .with_system(update_coins.system())
+                    .with_system(start_draggable.system())
+                    .with_system(display_ability_animation.system())
             )
             .add_system_set(
                 SystemSet::on_exit(AppState::Shop)
@@ -152,6 +155,14 @@ fn init(
     player_data.extra_coins = 0;
     commands.insert_resource(CoinLimit(coins));
     commands.insert_resource(shop_values);
+
+    commands.spawn().insert(AbilitiesStack {
+        next_tick_after: time.seconds_since_startup() + 1.,
+        stack: player_data.board.iter()
+            .filter(|card| card.base_card.trigger() == Triggers::Turn)
+            .map(|card| (card.base_card.ability(), card.id))
+            .collect()
+    });
 
     for (i, &card) in player_data.board.iter().enumerate() {
         let added_card = add_card(card,
@@ -224,25 +235,13 @@ fn init(
 
     // UI
     commands
-        .spawn_bundle(TextBundle {
-            style: Style {
-                align_self: AlignSelf::FlexEnd,
-                position_type: PositionType::Absolute,
-                position: Rect {
-                    bottom: Val::Px(15.0),
-                    left: Val::Px(15.0),
-                    ..Default::default()
-                },
-                ..Default::default()
-            },
-            text: Text::with_section(
-                "".to_string(),
-                text_styles.love_bug_small.clone(),
-                Default::default(),
-            ),
-            transform: Default::default(),
-            ..Default::default()
-        })
+        .spawn_bundle(
+            text_bundle_at_corner(
+                Corners::BottomLeft,
+                vec!["".to_string()],
+                &text_styles.love_bug_small,
+            )
+        )
         .insert(Coins);
 
     commands
@@ -264,13 +263,66 @@ fn init(
             )
         )
         .insert(Level);
+}
 
-    commands.spawn_bundle(
-        text_bundle_at_corner(
-            Corners::TopRight,
-            vec!["REMAINING TIME 60s".to_string()],
-            &text_styles.love_bug_small,
-        )).insert(BeganShop(time.seconds_since_startup()));
+fn draw_effect(material: Handle<ColorMaterial>, slot: ShopSlot) -> SpriteBundle {
+    SpriteBundle {
+        material,
+        visible: Visible {
+            is_visible: false,
+            is_transparent: true,
+        },
+        transform: Transform {
+            translation: vec3(slot.x(), slot.y(), Z_ABILITY),
+            ..Default::default()
+        },
+        ..Default::default()
+    }
+}
+
+struct AbilitiesStack {
+    stack: Vec<(Abilities, u32)>,
+    next_tick_after: f64,
+}
+
+fn display_ability_animation(
+    time: Res<Time>,
+    mut stack_query: Query<(Entity, &mut AbilitiesStack)>,
+    card_query: Query<(&ShopSlot, &Card)>,
+    mut commands: Commands,
+    handles: Res<Handles>,
+) {
+    if let Ok((entity_stack, mut ab_stack)) = stack_query.single_mut() {
+        let t = time.seconds_since_startup();
+        if ab_stack.next_tick_after < t {
+            if let Some((ability, card_id)) = ab_stack.stack.pop() {
+                let mut slot = None;
+                for (&s, &c) in card_query.iter() {
+                    if c.id == card_id {
+                        slot = Some(s);
+                    }
+                }
+
+                if let Some(slot) = slot {
+                    let start = t;
+                    let end = start + 0.5;
+                    let material = match ability {
+                        _ => handles.slot_border.clone()
+                    };
+
+                    commands
+                        .spawn_bundle(draw_effect(material, slot))
+                        .insert(DisplayBetweenAnimation { start, end })
+                        .insert(RemoveAfter(end + 0.1));
+
+                    ab_stack.next_tick_after = end;
+                }
+            } else {
+                commands.spawn().insert(StartDraggableAt(t + 0.5));
+                commands.entity(entity_stack).despawn_recursive();
+            }
+        }
+    }
 }
 
 fn add_card(card: Card, slot: ShopSlot, commands: &mut Commands, handles: &Res<TextureAssets>, ev_new_card: &mut EventWriter<NewCard>) -> Entity {
@@ -281,9 +333,6 @@ fn add_card(card: Card, slot: ShopSlot, commands: &mut Commands, handles: &Res<T
             ..Default::default()
         })
         .insert(card)
-        .insert(Draggable {
-            size: vec2(CARD_WIDTH / 2., CARD_HEIGHT / 2.),
-        })
         .insert(slot)
         .id();
     ev_new_card.send(NewCard(id, card.clone()));
@@ -312,12 +361,14 @@ fn update_ui(
     let mut level_text = queries.q2_mut().single_mut().expect("Level text not found.");
     level_text.sections[1].value = format!("SHOP LEVEL {}", level);
 
-    let (mut time_text, BeganShop(t0)) = queries.q3_mut().single_mut().expect("TIme text not found.");
-    let remaining_time = shop_values.timer - time.seconds_since_startup() + *t0;
-    time_text.sections[0].value = format!("REMAINING TIME {}s", remaining_time as u8);
+    if let Ok((mut time_text, BeganShop(t0))) = queries.q3_mut().single_mut()
+    {
+        let remaining_time = shop_values.timer - time.seconds_since_startup() + *t0;
+        time_text.sections[0].value = format!("REMAINING TIME {}s", remaining_time as u8);
 
-    if remaining_time < 0. {
-        state.set(AppState::Fight);
+        if remaining_time < 0. {
+            state.set(AppState::Fight);
+        }
     }
 }
 
@@ -448,8 +499,7 @@ fn drop_card(
                             commands
                                 .entity(e)
                                 .insert(animate_fast(&time, (transform.translation.x, transform.translation.y), (destination_slot.x(), destination_slot.y())));
-                            if destination_slot.row == ShopSlots::SELL { commands.entity(e).insert(Sold); }
-                            else if origin_slot.row == ShopSlots::SHOP {
+                            if destination_slot.row == ShopSlots::SELL { commands.entity(e).insert(Sold); } else if origin_slot.row == ShopSlots::SHOP {
                                 ev_coins.send(CoinsDiff(shop_values.buy, false));
                             }
                         } else {
@@ -537,4 +587,34 @@ fn on_exit(
     new_hand.sort_by_key(|t| t.0);
     player_data.board = new_board.iter().map(|t| t.1).collect();
     player_data.hand = new_hand.iter().map(|t| t.1).collect();
+}
+
+struct StartDraggableAt(f64);
+
+fn start_draggable(
+    start_draggable_query: Query<(Entity, &StartDraggableAt)>,
+    card_query: Query<Entity, With<Card>>,
+    time: Res<Time>,
+    text_styles: Res<TextStyles>,
+    mut commands: Commands,
+) {
+    for (es, &StartDraggableAt(t)) in start_draggable_query.iter() {
+        if time.seconds_since_startup() > t {
+            commands.entity(es).despawn_recursive();
+
+            for e in card_query.iter() {
+                commands.entity(e)
+                    .insert(Draggable {
+                        size: vec2(CARD_WIDTH / 2., CARD_HEIGHT / 2.),
+                    });
+            }
+
+            commands.spawn_bundle(
+                text_bundle_at_corner(
+                    Corners::TopRight,
+                    vec!["REMAINING TIME 60s".to_string()],
+                    &text_styles.love_bug_small,
+                )).insert(BeganShop(time.seconds_since_startup()));
+        }
+    }
 }

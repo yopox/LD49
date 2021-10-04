@@ -84,7 +84,40 @@ impl Plugin for AnimationPlugin {
     fn build(&self, app: &mut AppBuilder) {
         app
             .add_event::<TransitionOver>()
-            .add_system(update_translate_animation.system().label("translate-animation:update"));
+            .add_system(update_translate_animation.system().label("translate-animation:update"))
+            .add_system(control_display_animation.system().label("display-animation:update"))
+            .add_system(remove_after_animation.system().label("remove-after-animation:update"))
+        ;
+    }
+}
+
+pub struct DisplayBetweenAnimation {
+    pub start: f64,
+    pub end: f64,
+}
+
+fn control_display_animation(
+    mut query: Query<(&mut Visible, &DisplayBetweenAnimation)>,
+    time: Res<Time>,
+) {
+    for (mut visible, &DisplayBetweenAnimation { start , end }) in query.iter_mut() {
+        let t = time.seconds_since_startup();
+        visible.is_visible = start < t && t < end;
+    }
+}
+
+pub struct RemoveAfter(pub f64);
+
+fn remove_after_animation(
+    query: Query<(Entity, &RemoveAfter)>,
+    mut commands: Commands,
+    time: Res<Time>,
+) {
+    for (e, &RemoveAfter(t)) in query.iter() {
+        if time.seconds_since_startup() > t {
+            commands.entity(e)
+                .despawn_recursive();
+        }
     }
 }
 
