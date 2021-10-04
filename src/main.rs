@@ -6,6 +6,7 @@ use rand::rngs::StdRng;
 
 use crate::card::{Card, CardPlugin, BaseCards};
 use crate::fight::{FightPlugin, MyFoe};
+use crate::game_over::GameOverPlugin;
 use crate::loading::{AudioAssets, ColorAssets, TextureAssets};
 use crate::shop::ShopPlugin;
 use crate::title::TitlePlugin;
@@ -22,6 +23,7 @@ mod fight;
 mod loading;
 mod shop_rules;
 mod shop_manager;
+mod game_over;
 
 pub const WIDTH: f32 = 1280.;
 pub const HEIGHT: f32 = 720.;
@@ -32,6 +34,7 @@ enum AppState {
     Title,
     Shop,
     Fight,
+    GameOver,
 }
 
 struct MainCamera;
@@ -59,6 +62,7 @@ fn main() {
         .add_plugin(DragAndDropPlugin)
         .add_plugin(FightPlugin)
         .add_plugin(TitlePlugin)
+        .add_plugin(GameOverPlugin)
         .add_startup_system(setup.system())
         .add_startup_system(crate::font::load_fonts.system())
         .add_startup_system(setup_data.system())
@@ -110,7 +114,7 @@ impl Default for PlayerData {
             board: vec![],
             coins: 3,
             extra_coins: 0,
-            hp: 25,
+            hp: 1,
             shop_level: 1,
         }
     }

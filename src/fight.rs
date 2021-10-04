@@ -376,6 +376,10 @@ fn event_dispatcher(
     mut ew_apply_effect: EventWriter<ApplyEffect>,
     mut ew_players_attack: EventWriter<PlayersAttack>,
     mut ew_gold_change: EventWriter<GoldChange>,
+    players: QuerySet<(
+        Query<&PlayerData, With<MySelf>>,
+        Query<&PlayerData, (Without<MySelf>, Without<FightBackup>)>,
+    )>,
     mut app_state: ResMut<State<AppState>>,
 ) {
     let mut should_dispatch = false;
@@ -409,7 +413,16 @@ fn event_dispatcher(
                 }
             }
         } else {
-            app_state.set(AppState::Shop);
+            let dead = players.q0().single().unwrap().hp <= 0;
+            let mut last_alive = true;
+            for data in players.q1().iter() {
+                if data.hp > 0 { last_alive = false; break; }
+            }
+            if dead || last_alive {
+                app_state.set(AppState::GameOver);
+            } else {
+                app_state.set(AppState::Shop);
+            }
         }
     }
 }

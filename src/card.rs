@@ -466,6 +466,12 @@ impl Plugin for CardPlugin {
                     .with_system(update_size.system().label("popup:update").after("popup:init"))
                     .with_system(update_popup_visibility.system().after("popup:update"))
                     .with_system(update_stats.system())
+            )
+            .add_system_set(
+                SystemSet::on_update(AppState::GameOver)
+                    .with_system(init_popup.system().label("popup:init"))
+                    .with_system(update_size.system().label("popup:update").after("popup:init"))
+                    .with_system(update_popup_visibility.system().after("popup:update"))
             );
     }
 }
