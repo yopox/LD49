@@ -14,6 +14,7 @@ pub const Z_CARD_SWITCH: f32 = 2.1;
 pub const Z_CARD_DRAG: f32 = 3.;
 pub const Z_BOB: f32 = 4.;
 pub const Z_POPUP_BG: f32 = 20.;
+pub const Z_POPUP_TEXT: f32 = 21.;
 
 /// Returns coordinates for the sprite to be drawn at (`x`; `y`), with a given `z` index.
 pub fn xyz(x: f32, y: f32, size: (f32, f32), z_index: f32) -> Vec3 {

@@ -119,6 +119,7 @@ fn init(
     time: Res<Time>,
     mut commands: Commands,
     mut global_data: ResMut<GlobalData>,
+    mut ev_new_card: EventWriter<NewCard>,
     handles: Res<Handles>,
     text_styles: Res<TextStyles>,
     mut query: Query<&mut PlayerData, With<MySelf>>,
@@ -137,25 +138,25 @@ fn init(
     commands.insert_resource(costs);
 
     for (i, &card) in player_data.board.iter().enumerate() {
-        add_card(card,
+        let added_card = add_card(card,
                  ShopSlot { row: ShopSlots::BOARD, id: i as u8 },
-                 &mut commands, &handles);
+                 &mut commands, &handles, &mut ev_new_card);
     }
 
     for (i, &card) in player_data.hand.iter().enumerate() {
-        add_card(card,
+        let added_card = add_card(card,
                  ShopSlot { row: ShopSlots::HAND, id: i as u8 },
-                 &mut commands, &handles);
+                 &mut commands, &handles, &mut ev_new_card);
     }
 
-    add_card(Card::new(CardTypes::MERCH_8, global_data.next_card_id),
+    let added_card_1 = add_card(Card::new(CardTypes::MERCH_8, global_data.next_card_id),
              ShopSlot { row: ShopSlots::SHOP, id: 0 },
-             &mut commands, &handles);
+             &mut commands, &handles, &mut ev_new_card);
     global_data.next_card_id += 1;
 
-    add_card(Card::new(CardTypes::MUSH_8, global_data.next_card_id),
+    let added_card_2 = add_card(Card::new(CardTypes::MUSH_8, global_data.next_card_id),
              ShopSlot { row: ShopSlots::SHOP, id: 1 },
-             &mut commands, &handles);
+             &mut commands, &handles, &mut ev_new_card);
     global_data.next_card_id += 1;
 
     // Slots
@@ -275,8 +276,8 @@ fn init(
     }).insert(BeganShop(time.seconds_since_startup()));
 }
 
-fn add_card(card: Card, slot: ShopSlot, commands: &mut Commands, handles: &Res<Handles>) {
-    commands
+fn add_card(card: Card, slot: ShopSlot, commands: &mut Commands, handles: &Res<Handles>, ev_new_card: &mut EventWriter<NewCard>) -> Entity {
+    let id = commands
         .spawn_bundle(SpriteBundle {
             material: card.card_type.handle(&handles),
             transform: card_transform(slot.x(), slot.y()),
@@ -287,7 +288,9 @@ fn add_card(card: Card, slot: ShopSlot, commands: &mut Commands, handles: &Res<H
             size: vec2(CARD_WIDTH / 2., CARD_HEIGHT / 2.),
         })
         .insert(slot)
-    ;
+        .id();
+    ev_new_card.send(NewCard(id, card.card_type));
+    return id;
 }
 
 fn update_ui(
@@ -488,7 +491,7 @@ fn sell_card(
     for transition in ev_transition.iter() {
         for (e, slot) in cards.iter_mut() {
             if e == transition.0 && slot.row == ShopSlots::SELL {
-                commands.entity(transition.0).despawn();
+                commands.entity(transition.0).despawn_recursive();
                 ev_coins.send(CoinsDiff(costs.sell, false));
             }
         }
