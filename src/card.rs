@@ -7,7 +7,8 @@ use bevy::prelude::*;
 use bevy::text::Text2dSize;
 use derive_more::Display;
 
-use crate::{Handles, HEIGHT, MainCamera, WIDTH};
+use crate::{HEIGHT, WIDTH, MainCamera, AppState};
+use crate::loading::{ColorAssets, TextureAssets};
 use crate::font::*;
 use crate::ui::Dragged;
 use crate::util::{cursor_pos, overlap, Z_POPUP_BG, Z_POPUP_TEXT, Z_STATS, Z_STATS_BG};
@@ -133,7 +134,7 @@ impl BaseCards {
         }
     }
 
-    pub fn handle(&self, handles: &Res<Handles>) -> Handle<ColorMaterial> {
+    pub fn handle(&self, handles: &Res<TextureAssets>) -> Handle<ColorMaterial> {
         match self {
             BaseCards::MUSH_8 => handles.mush_8.clone(),
             BaseCards::MERCH_8 => handles.merch_8.clone(),
@@ -167,11 +168,20 @@ impl Plugin for CardPlugin {
         app
             .add_event::<NewCard>()
             .add_event::<StatsChanged>()
-            .add_system(init_popup.system().label("popup:init"))
-            .add_system(update_size.system().label("popup:update").after("popup:init"))
-            .add_system(update_popup_visibility.system().after("popup:update"))
-            .add_system(update_stats.system());
-        //.add_system(update_background.system().before("popup:update"));update_stats
+            .add_system_set(
+                SystemSet::on_update(AppState::Shop)
+                    .with_system(init_popup.system().label("popup:init"))
+                    .with_system(update_size.system().label("popup:update").after("popup:init"))
+                    .with_system(update_popup_visibility.system().after("popup:update"))
+                    .with_system(update_stats.system())
+            )
+            .add_system_set(
+                SystemSet::on_update(AppState::Fight)
+                    .with_system(init_popup.system().label("popup:init"))
+                    .with_system(update_size.system().label("popup:update").after("popup:init"))
+                    .with_system(update_popup_visibility.system().after("popup:update"))
+                    .with_system(update_stats.system())
+            );
     }
 }
 
@@ -186,7 +196,8 @@ const POPUP_PADDING: f32 = 10.;
 
 fn init_popup(
     mut commands: Commands,
-    handles: Res<Handles>,
+    handles: Res<TextureAssets>,
+    colors: Res<ColorAssets>,
     mut ev_new_card: EventReader<NewCard>,
     text_styles: Res<TextStyles>,
 ) {
@@ -227,7 +238,7 @@ fn init_popup(
 
             parent
                 .spawn_bundle(SpriteBundle {
-                    material: handles.background_color.clone(),
+                    material: colors.background.clone(),
                     sprite: Sprite::new(Vec2::new(0.0, 0.0)),
                     visible: Visible {
                         is_visible: false,
@@ -244,7 +255,7 @@ fn init_popup(
 
             parent
                 .spawn_bundle(SpriteBundle {
-                    material: handles.background_color.clone(),
+                    material: colors.background.clone(),
                     sprite: Sprite::new(Vec2::new(254.0, 50.0)),
                     transform: Transform {
                         translation: Vec3::new(0., (-CARD_HEIGHT / 2. + 12.) / CARD_SCALE, Z_STATS_BG),

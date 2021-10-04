@@ -2,7 +2,8 @@ use bevy::math::vec3;
 use bevy::prelude::*;
 use derive_more::Display;
 
-use crate::{AppState, GlobalData, Handles, HEIGHT, MySelf, PlayerData, WIDTH};
+use crate::{AppState, GlobalData, HEIGHT, MySelf, PlayerData, WIDTH};
+use crate::loading::TextureAssets;
 use crate::abs::{CombatEvents, simulate_combat};
 use crate::card::{Abilities, Card, CARD_HEIGHT, NewCard, StatsChanged};
 use crate::font::TextStyles;
@@ -112,7 +113,7 @@ pub struct FightEventsStack {
     stack: Vec<FightEvents>,
 }
 
-fn add_card(card: Card, slot: FightSlot, commands: &mut Commands, handles: &Res<Handles>, ev_new_card: &mut EventWriter<NewCard>) {
+fn add_card(card: Card, slot: FightSlot, commands: &mut Commands, handles: &Res<TextureAssets>, ev_new_card: &mut EventWriter<NewCard>) {
     let id = commands
         .spawn_bundle(SpriteBundle {
             material: card.base_card.handle(&handles),
@@ -127,7 +128,7 @@ fn add_card(card: Card, slot: FightSlot, commands: &mut Commands, handles: &Res<
 
 fn setup_fight(
     mut commands: Commands,
-    handles: Res<Handles>,
+    handles: Res<TextureAssets>,
     time: Res<Time>,
     mut global_data: ResMut<GlobalData>,
     mut ev_new_card: EventWriter<NewCard>,
@@ -244,7 +245,7 @@ fn setup_fight(
 
 fn draw_fight(
     mut commands: Commands,
-    handles: Res<Handles>,
+    handles: Res<TextureAssets>,
     text_styles: Res<TextStyles>,
     global_data: Res<GlobalData>,
 ) {

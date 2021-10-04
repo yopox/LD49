@@ -1,9 +1,12 @@
 use bevy::prelude::*;
+use bevy_asset_loader::AssetLoader;
+use bevy_kira_audio::{AudioChannel, Audio, AudioPlugin, AudioSource};
 use rand::{Rng, SeedableRng};
 use rand::rngs::StdRng;
 
 use crate::card::{Card, CardPlugin, BaseCards};
 use crate::fight::{FightPlugin, MyFoe};
+use crate::loading::{AudioAssets, ColorAssets, TextureAssets};
 use crate::shop::ShopPlugin;
 use crate::title::TitlePlugin;
 use crate::ui::{AnimationPlugin, DragAndDropPlugin};
@@ -16,35 +19,29 @@ mod util;
 mod title;
 mod ui;
 mod fight;
+mod loading;
 
 pub const WIDTH: f32 = 1280.;
 pub const HEIGHT: f32 = 720.;
 
 #[derive(Debug, Clone, Eq, PartialEq, Hash)]
 enum AppState {
+    Loading,
     Title,
     Shop,
     Fight,
 }
 
-pub struct Handles {
-    pub mush_8: Handle<ColorMaterial>,
-    pub merch_8: Handle<ColorMaterial>,
-    pub spid_8: Handle<ColorMaterial>,
-    pub rob_8: Handle<ColorMaterial>,
-
-    pub shop_bg: Handle<ColorMaterial>,
-    pub fight_bg: Handle<ColorMaterial>,
-    pub slot_border: Handle<ColorMaterial>,
-    pub shop_bob: Handle<ColorMaterial>,
-
-    pub background_color: Handle<ColorMaterial>,
-}
-
 struct MainCamera;
 
 fn main() {
-    App::build()
+    let mut app = App::build();
+    AssetLoader::new(AppState::Loading, AppState::Shop)
+        .with_collection::<TextureAssets>()
+        .with_collection::<AudioAssets>()
+        .build(&mut app);
+    app
+        .add_state(AppState::Loading)
         .insert_resource(WindowDescriptor {
             title: "LD49".to_string(),
             width: WIDTH,
@@ -53,9 +50,9 @@ fn main() {
             ..Default::default()
         })
         .add_plugins(DefaultPlugins)
+        .add_plugin(AudioPlugin)
         .add_plugin(ShopPlugin)
         .add_plugin(CardPlugin)
-        .add_state(AppState::Shop)
         .add_plugin(AnimationPlugin)
         .add_plugin(DragAndDropPlugin)
         .add_plugin(FightPlugin)
@@ -68,24 +65,8 @@ fn main() {
 
 fn setup(
     mut commands: Commands,
-    asset_server: Res<AssetServer>,
     mut materials: ResMut<Assets<ColorMaterial>>,
 ) {
-    // Load assets
-    commands.insert_resource(Handles {
-        mush_8: materials.add(asset_server.load("MUSH_8.png").into()),
-        merch_8: materials.add(asset_server.load("MERCH_8.png").into()),
-        spid_8: materials.add(asset_server.load("SPID_8.png").into()),
-        rob_8: materials.add(asset_server.load("ROB_8.png").into()),
-
-        shop_bg: materials.add(asset_server.load("shop.png").into()),
-        fight_bg: materials.add(asset_server.load("fight.png").into()),
-        slot_border: materials.add(asset_server.load("slot_border.png").into()),
-        shop_bob: materials.add(asset_server.load("MERCHANT STORE.png").into()),
-
-        background_color: materials.add(Color::rgb(244. / 255., 237. / 255., 219. / 255.).into()),
-    });
-
     // Spawn camera
     let mut camera = OrthographicCameraBundle::new_2d();
     camera.transform = Transform {
@@ -96,6 +77,10 @@ fn setup(
         .spawn_bundle(camera)
         .insert(MainCamera);
     commands.spawn_bundle(UiCameraBundle::default());
+
+    commands.insert_resource(ColorAssets {
+        background: materials.add(Color::rgb(244. / 255., 237. / 255., 219. / 255.).into()),
+    });
 }
 
 pub struct MySelf;

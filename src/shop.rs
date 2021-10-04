@@ -2,12 +2,14 @@ use std::cmp::{max, min};
 
 use bevy::math::{vec2, vec3};
 use bevy::prelude::*;
+use bevy_kira_audio::{AudioChannel, Audio, AudioPlugin};
 
 use crate::{AppState, HEIGHT, MySelf, PlayerData, WIDTH};
 use crate::card::*;
 use crate::font::TextStyles;
 use crate::GlobalData;
-use crate::Handles;
+use crate::loading::TextureAssets;
+use crate::loading::AudioAssets;
 use crate::ui::{animate, animate_fast, animate_switch, Draggable, Dragged, DROP_BORDER, Dropped, easing, StateBackground, TransitionOver, TranslationAnimation};
 use crate::util::{card_transform, cleanup_system, Coins, Corners, Level, overlap, PlayerHP, Slot, text_bundle_at_corner, Z_BACKGROUND, Z_BOB};
 
@@ -133,7 +135,7 @@ fn init(
     mut commands: Commands,
     mut global_data: ResMut<GlobalData>,
     mut ev_new_card: EventWriter<NewCard>,
-    handles: Res<Handles>,
+    handles: Res<TextureAssets>,
     text_styles: Res<TextStyles>,
     mut query: Query<&mut PlayerData, With<MySelf>>,
 ) {
@@ -271,7 +273,7 @@ fn init(
         )).insert(BeganShop(time.seconds_since_startup()));
 }
 
-fn add_card(card: Card, slot: ShopSlot, commands: &mut Commands, handles: &Res<Handles>, ev_new_card: &mut EventWriter<NewCard>) -> Entity {
+fn add_card(card: Card, slot: ShopSlot, commands: &mut Commands, handles: &Res<TextureAssets>, ev_new_card: &mut EventWriter<NewCard>) -> Entity {
     let id = commands
         .spawn_bundle(SpriteBundle {
             material: card.base_card.handle(&handles),
