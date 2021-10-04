@@ -21,6 +21,7 @@ mod ui;
 mod fight;
 mod loading;
 mod shop_rules;
+mod shop_manager;
 
 pub const WIDTH: f32 = 1280.;
 pub const HEIGHT: f32 = 720.;
@@ -37,7 +38,7 @@ struct MainCamera;
 
 fn main() {
     let mut app = App::build();
-    AssetLoader::new(AppState::Loading, AppState::Shop)
+    AssetLoader::new(AppState::Loading, AppState::Title)
         .with_collection::<TextureAssets>()
         .with_collection::<AudioAssets>()
         .build(&mut app);

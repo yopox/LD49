@@ -19,8 +19,7 @@ pub enum ShopRules {
 
 impl Distribution<ShopRules> for Standard {
     fn sample<R: Rng + ?Sized>(&self, rng: &mut R) -> ShopRules {
-        // match rng.gen_range(0, 3) { // rand 0.5, 0.6, 0.7
-        match rng.gen_range(0..=22) { // rand 0.8
+        match rng.gen_range(0..=22) {
             1|2 => ShopRules::BuyPlus,
             3 => ShopRules::BuyMinus,
             4 => ShopRules::SellPlus,

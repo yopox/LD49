@@ -1,7 +1,9 @@
 use bevy::prelude::*;
+use bevy_kira_audio::{Audio, AudioChannel, AudioPlugin};
 
 use crate::{AppState, HEIGHT};
 use crate::font::TextStyles;
+use crate::loading::AudioAssets;
 
 pub struct TitlePlugin;
 
@@ -47,7 +49,12 @@ impl FromWorld for ButtonMaterials {
 fn display_title(
     mut commands: Commands,
     text_styles: Res<TextStyles>,
+    audio: Res<Audio>,
+    songs: Res<AudioAssets>,
 ) {
+    audio.stop();
+    audio.play_looped(songs.title.clone());
+
     commands
         .spawn_bundle(NodeBundle {
             style: Style {

@@ -6,12 +6,13 @@ use bevy_kira_audio::{Audio, AudioChannel, AudioPlugin};
 use rand::Rng;
 
 use crate::{AppState, HEIGHT, MySelf, PlayerData, WIDTH};
-use crate::shop_rules::ShopRules;
 use crate::card::*;
 use crate::font::TextStyles;
 use crate::GlobalData;
 use crate::loading::{AudioAssets, ColorAssets};
 use crate::loading::TextureAssets;
+use crate::shop_manager::ShopManager;
+use crate::shop_rules::ShopRules;
 use crate::ui::{animate, animate_fast, animate_switch, DisplayBetweenAnimation, Draggable, Dragged, DROP_BORDER, Dropped, easing, RemoveAfter, StateBackground, TransitionOver, TranslationAnimation};
 use crate::util::{card_transform, cleanup_system, Coins, Corners, Level, overlap, PlayerHP, Slot, text_bundle_at_corner, Z_ABILITY, Z_ANNOUNCEMENT_BG, Z_BACKGROUND, Z_BOB, Z_POPUP_BG, Z_POPUP_TEXT};
 
@@ -60,9 +61,9 @@ struct SlotHovered;
 
 struct Sold;
 
+// (gained coins ; can overflow)
 struct CoinsDiff(i8, bool);
 
-// (gained coins ; can overflow)
 struct CoinLimit(u16);
 
 struct BeganShop(f64);
@@ -206,26 +207,23 @@ fn init(
     });
 
     for (i, &card) in player_data.board.iter().enumerate() {
-        let added_card = add_card(card,
-                                  ShopSlot { row: ShopSlots::BOARD, id: i as u8 },
-                                  &mut commands, &handles, &mut ev_new_card);
+        add_card(card,
+                 ShopSlot { row: ShopSlots::BOARD, id: i as u8 },
+                 &mut commands, &handles, &mut ev_new_card);
     }
 
     for (i, &card) in player_data.hand.iter().enumerate() {
-        let added_card = add_card(card,
-                                  ShopSlot { row: ShopSlots::HAND, id: i as u8 },
-                                  &mut commands, &handles, &mut ev_new_card);
+        add_card(card,
+                 ShopSlot { row: ShopSlots::HAND, id: i as u8 },
+                 &mut commands, &handles, &mut ev_new_card);
     }
 
-    let added_card_1 = add_card(Card::new(BaseCards::MERCH_8, global_data.next_card_id),
-                                ShopSlot { row: ShopSlots::SHOP, id: 0 },
-                                &mut commands, &handles, &mut ev_new_card);
-    global_data.next_card_id += 1;
-
-    let added_card_2 = add_card(Card::new(BaseCards::MUSH_8, global_data.next_card_id),
-                                ShopSlot { row: ShopSlots::SHOP, id: 1 },
-                                &mut commands, &handles, &mut ev_new_card);
-    global_data.next_card_id += 1;
+    for (i, &card) in ShopManager::shop_inventory(player_data.shop_level, &mut global_data.rng).iter().enumerate() {
+        add_card(Card::new(card, global_data.next_card_id),
+                 ShopSlot { row: ShopSlots::SHOP, id: i as u8 },
+                 &mut commands, &handles, &mut ev_new_card);
+        global_data.next_card_id += 1;
+    }
 
     let bob_slot = ShopSlot { row: ShopSlots::SELL, id: 0 };
     commands
