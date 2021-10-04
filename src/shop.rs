@@ -147,6 +147,7 @@ fn init(
     let coins = max(MIN_COINS, min(global_data.turn, shop_values.gold_limit))
         + player_data.extra_coins;
     player_data.coins = coins;
+    player_data.extra_coins = 0;
     commands.insert_resource(CoinLimit(coins));
     commands.insert_resource(shop_values);
 

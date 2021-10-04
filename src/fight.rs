@@ -532,7 +532,7 @@ fn update_ui(
     )>,
 ) {
     let my_data = player_queries.q0().single().expect("No data for the player");
-    let extra_coins = my_data.coins;
+    let extra_coins = my_data.extra_coins;
     let my_hp = my_data.hp;
 
     let foe_data = player_queries.q1().single().expect("Only one foe");
