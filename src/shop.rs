@@ -1,4 +1,5 @@
-use std::cmp::{min, max};
+use std::cmp::{max, min};
+
 use bevy::math::{vec2, vec3};
 use bevy::prelude::*;
 
@@ -7,7 +8,7 @@ use crate::card::*;
 use crate::font::TextStyles;
 use crate::GlobalData;
 use crate::Handles;
-use crate::ui::{animate, animate_switch, animate_fast, Draggable, Dragged, DROP_BORDER, Dropped, easing, TranslationAnimation, TransitionOver, StateBackground};
+use crate::ui::{animate, animate_fast, animate_switch, Draggable, Dragged, DROP_BORDER, Dropped, easing, StateBackground, TransitionOver, TranslationAnimation};
 use crate::util::{card_transform, cleanup_system, Coins, Corners, Level, overlap, PlayerHP, Slot, text_bundle_at_corner, Z_BACKGROUND, Z_BOB};
 
 pub struct ShopPlugin;
@@ -48,12 +49,20 @@ impl Slot for ShopSlot {
 }
 
 struct Bob;
+
 struct SlotBorder;
+
 struct SlotHovered;
+
 struct Sold;
-struct CoinsDiff(i8, bool); // (gained coins ; can overflow)
+
+struct CoinsDiff(i8, bool);
+
+// (gained coins ; can overflow)
 struct CoinLimit(u16);
+
 struct BeganShop(f64);
+
 const MIN_COINS: u16 = 3;
 
 struct ShopValues {
@@ -143,31 +152,42 @@ fn init(
 
     for (i, &card) in player_data.board.iter().enumerate() {
         let added_card = add_card(card,
-                 ShopSlot { row: ShopSlots::BOARD, id: i as u8 },
-                 &mut commands, &handles, &mut ev_new_card);
+                                  ShopSlot { row: ShopSlots::BOARD, id: i as u8 },
+                                  &mut commands, &handles, &mut ev_new_card);
     }
 
     for (i, &card) in player_data.hand.iter().enumerate() {
         let added_card = add_card(card,
-                 ShopSlot { row: ShopSlots::HAND, id: i as u8 },
-                 &mut commands, &handles, &mut ev_new_card);
+                                  ShopSlot { row: ShopSlots::HAND, id: i as u8 },
+                                  &mut commands, &handles, &mut ev_new_card);
     }
 
     let added_card_1 = add_card(Card::new(CardTypes::MERCH_8, global_data.next_card_id),
-             ShopSlot { row: ShopSlots::SHOP, id: 0 },
-             &mut commands, &handles, &mut ev_new_card);
+                                ShopSlot { row: ShopSlots::SHOP, id: 0 },
+                                &mut commands, &handles, &mut ev_new_card);
     global_data.next_card_id += 1;
 
     let added_card_2 = add_card(Card::new(CardTypes::MUSH_8, global_data.next_card_id),
-             ShopSlot { row: ShopSlots::SHOP, id: 1 },
-             &mut commands, &handles, &mut ev_new_card);
+                                ShopSlot { row: ShopSlots::SHOP, id: 1 },
+                                &mut commands, &handles, &mut ev_new_card);
     global_data.next_card_id += 1;
 
+    let bob_slot = ShopSlot { row: ShopSlots::SELL, id: 0 };
+    commands
+        .spawn_bundle(SpriteBundle {
+            material: handles.shop_bob.clone(),
+            transform: Transform {
+                translation: Vec3::new(bob_slot.x(), bob_slot.y(), Z_BOB),
+                scale: Vec3::new(CARD_SCALE, CARD_SCALE, 1.),
+                ..Default::default()
+            },
+            ..Default::default()
+        })
+        .insert(Bob);
+
     // Slots
+    commands.spawn().insert(bob_slot);
     for i in 0..=6 {
-        if i == 0 {
-            commands.spawn().insert(ShopSlot { row: ShopSlots::SELL, id: 0 });
-        }
         if i <= 4 {
             commands.spawn().insert(ShopSlot { row: ShopSlots::HAND, id: i });
         }
@@ -215,7 +235,7 @@ fn init(
             text: Text::with_section(
                 "".to_string(),
                 text_styles.love_bug_small.clone(),
-                Default::default()
+                Default::default(),
             ),
             transform: Default::default(),
             ..Default::default()
@@ -296,7 +316,6 @@ fn update_ui(
     if remaining_time < 0. {
         state.set(AppState::Fight);
     }
-
 }
 
 fn highlight_slot(
