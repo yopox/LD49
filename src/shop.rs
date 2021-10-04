@@ -2,16 +2,16 @@ use std::cmp::{max, min};
 
 use bevy::math::{vec2, vec3};
 use bevy::prelude::*;
-use bevy_kira_audio::{AudioChannel, Audio, AudioPlugin};
+use bevy_kira_audio::{Audio, AudioChannel, AudioPlugin};
 
 use crate::{AppState, HEIGHT, MySelf, PlayerData, WIDTH};
 use crate::card::*;
 use crate::font::TextStyles;
 use crate::GlobalData;
+use crate::loading::{AudioAssets, ColorAssets};
 use crate::loading::TextureAssets;
-use crate::loading::AudioAssets;
 use crate::ui::{animate, animate_fast, animate_switch, DisplayBetweenAnimation, Draggable, Dragged, DROP_BORDER, Dropped, easing, RemoveAfter, StateBackground, TransitionOver, TranslationAnimation};
-use crate::util::{card_transform, cleanup_system, Coins, Corners, Level, overlap, PlayerHP, Slot, text_bundle_at_corner, Z_ABILITY, Z_BACKGROUND, Z_BOB};
+use crate::util::{card_transform, cleanup_system, Coins, Corners, Level, overlap, PlayerHP, Slot, text_bundle_at_corner, Z_ABILITY, Z_ANNOUNCEMENT_BG, Z_BACKGROUND, Z_BOB, Z_POPUP_BG, Z_POPUP_TEXT};
 
 pub struct ShopPlugin;
 
@@ -132,6 +132,8 @@ impl Plugin for ShopPlugin {
     }
 }
 
+const INSTABILITY_POPUP_DURATION: f64 = 5.;
+
 fn init(
     time: Res<Time>,
     mut commands: Commands,
@@ -139,6 +141,9 @@ fn init(
     mut ev_new_card: EventWriter<NewCard>,
     handles: Res<TextureAssets>,
     text_styles: Res<TextStyles>,
+    colors: Res<ColorAssets>,
+    audio: Res<Audio>,
+    songs: Res<AudioAssets>,
     mut query: Query<&mut PlayerData, With<MySelf>>,
 ) {
     let mut player_data = query.single_mut().expect(
@@ -146,6 +151,9 @@ fn init(
     );
 
     global_data.turn += 1;
+
+    audio.stop();
+    audio.play_looped_with_intro(songs.intro.clone(), songs.shop.clone());
 
     let shop_values = ShopValues::default();
     let coins = max(MIN_COINS, min(global_data.turn, shop_values.gold_limit))
@@ -155,12 +163,42 @@ fn init(
     commands.insert_resource(CoinLimit(coins));
     commands.insert_resource(shop_values);
 
+    let t0 = time.seconds_since_startup();
+
+    commands.spawn_bundle(Text2dBundle {
+        text: Text::with_section(
+            "Instability at this turn:\n\nNONE :)".to_string(),
+            text_styles.bird_seed_small.clone(),
+            TextAlignment {
+                horizontal: HorizontalAlign::Center,
+                ..Default::default()
+            }),
+        transform: Transform {
+            translation: Vec3::new(WIDTH / 2., HEIGHT / 2., Z_ANNOUNCEMENT_BG),
+            ..Default::default()
+        },
+        ..Default::default()
+    }).insert(RemoveAfter(t0 + INSTABILITY_POPUP_DURATION));
+    commands.spawn_bundle(SpriteBundle {
+        material: colors.background.clone(),
+        sprite: Sprite::new(Vec2::new(WIDTH / 2., HEIGHT / 2.)),
+        visible: Visible {
+            is_visible: true,
+            is_transparent: false,
+        },
+        transform: Transform {
+            translation: Vec3::new(WIDTH / 2., HEIGHT / 2., Z_ANNOUNCEMENT_BG),
+            ..Default::default()
+        },
+        ..Default::default()
+    }).insert(RemoveAfter(t0 + INSTABILITY_POPUP_DURATION));
+
     commands.spawn().insert(AbilitiesStack {
-        next_tick_after: time.seconds_since_startup() + 1.,
+        next_tick_after: t0 + INSTABILITY_POPUP_DURATION + 0.5,
         stack: player_data.board.iter()
             .filter(|card| card.base_card.trigger() == Triggers::Turn)
             .map(|card| (card.base_card.ability(), card.id))
-            .collect()
+            .collect(),
     });
 
     for (i, &card) in player_data.board.iter().enumerate() {
@@ -247,7 +285,7 @@ fn init(
         .spawn_bundle(
             text_bundle_at_corner(
                 Corners::BottomRight,
-                vec![format!("YOUR HP: {}", player_data.hp)],
+                vec![format!("YOUR HP {}", player_data.hp)],
                 &text_styles.love_bug_small,
             )
         )
@@ -284,6 +322,8 @@ struct AbilitiesStack {
     next_tick_after: f64,
 }
 
+const ABILITY_DISPLAY_TIME: f64 = 1.5;
+
 fn display_ability_animation(
     time: Res<Time>,
     mut stack_query: Query<(Entity, &mut AbilitiesStack)>,
@@ -304,7 +344,7 @@ fn display_ability_animation(
 
                 if let Some(slot) = slot {
                     let start = t;
-                    let end = start + 0.5;
+                    let end = start + ABILITY_DISPLAY_TIME;
                     let material = match ability {
                         _ => handles.slot_border.clone()
                     };
