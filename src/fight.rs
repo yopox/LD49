@@ -7,7 +7,7 @@ use crate::abs::{CombatEvents, simulate_combat};
 use crate::card::{Abilities, Card, CARD_HEIGHT, NewCard, StatsChanged};
 use crate::font::TextStyles;
 use crate::ui::{easing, StateBackground, TranslationAnimation};
-use crate::util::{card_transform, cleanup_system, Coins, Corners, Level, PlayerHP, text_bundle_at_corner, Z_BACKGROUND};
+use crate::util::{card_transform, cleanup_system, Coins, Corners, Level, PlayerHP, text_bundle_at_corner, Z_BACKGROUND, Z_CARD, Z_CARD_DRAG};
 
 pub struct FightPlugin;
 
@@ -420,8 +420,8 @@ fn translation_animation_producer(
 }
 
 fn translate_slots(t0: f64, from: FightSlot, to: FightSlot, duration: f64) -> TranslationAnimation {
-    let start = vec3(from.x(), from.y(), 0.);
-    let end = vec3(to.x(), to.y(), 0.);
+    let start = vec3(from.x(), from.y(), Z_CARD_DRAG);
+    let end = vec3(to.x(), to.y(), Z_CARD);
     TranslationAnimation {
         f: easing::Functions::CubicInOut,
         translation: end - start,
