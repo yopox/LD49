@@ -4,6 +4,10 @@ use bevy::prelude::*;
 use crate::card::{CARD_SCALE, Card, CardTypes};
 use crate::Handles;
 
+pub struct Coins;
+pub struct Level;
+pub struct PlayerHP;
+
 pub const Z_BACKGROUND: f32 = 0.;
 pub const Z_CARD: f32 = 2.;
 pub const Z_CARD_SWITCH: f32 = 2.1;

@@ -2,11 +2,12 @@ use bevy::math::vec3;
 use bevy::prelude::*;
 use derive_more::Display;
 
-use crate::{AppState, GlobalData, Handles, HEIGHT, MySelf, PlayerData};
+use crate::{AppState, GlobalData, Handles, HEIGHT, MySelf, PlayerData, WIDTH};
 use crate::abs::{CombatEvents, simulate_combat};
 use crate::card::{Abilities, Card, CARD_HEIGHT};
+use crate::font::TextStyles;
 use crate::ui::{easing, StateBackground, TranslationAnimation};
-use crate::util::{card_transform, cleanup_system};
+use crate::util::{card_transform, cleanup_system, Coins, Level, PlayerHP, Z_BACKGROUND};
 
 pub struct FightPlugin;
 
@@ -21,10 +22,12 @@ impl Plugin for FightPlugin {
             .add_system_set(
                 SystemSet::on_enter(AppState::Fight)
                     .with_system(setup_fight.system().label("setup_fight"))
+                    .with_system(draw_fight.system())
             )
             .add_system_set(
                 SystemSet::on_update(AppState::Fight)
                     .with_system(event_dispatcher.system().label("event_dispatcher"))
+                    .with_system(update_ui.system().label("update_ui"))
             )
             .add_system_set(
                 SystemSet::on_update(AppState::Fight).after("event_dispatcher")
@@ -46,12 +49,16 @@ impl Plugin for FightPlugin {
                     .with_system(cleanup_system::<FightSlot>.system())
                     .with_system(cleanup_system::<FightEventsStack>.system())
                     .with_system(cleanup_system::<StateBackground>.system())
+                    .with_system(cleanup_system::<ExtraCoins>.system())
+                    .with_system(cleanup_system::<Level>.system())
             )
         ;
     }
 }
 
 struct WaitUntil(f64);
+
+struct ExtraCoins;
 
 #[derive(Copy, Clone)]
 pub enum FightPlayers {
@@ -226,6 +233,97 @@ fn setup_fight(
         .insert(MyFoe);
     commands.spawn().insert(FightEventsStack { stack });
     commands.spawn().insert(WaitUntil(time.seconds_since_startup()));
+}
+
+fn draw_fight(
+    mut commands: Commands,
+    handles: Res<Handles>,
+    text_styles: Res<TextStyles>,
+    global_data: Res<GlobalData>,
+) {
+    commands.spawn_bundle(SpriteBundle {
+        material: handles.fight_bg.clone(),
+        transform: Transform {
+            translation: Vec3::new(WIDTH / 2., HEIGHT / 2., Z_BACKGROUND),
+            ..Default::default()
+        },
+        ..Default::default()
+    }).insert(StateBackground);
+
+
+    commands
+        .spawn_bundle(TextBundle {
+            style: Style {
+                align_self: AlignSelf::FlexEnd,
+                position_type: PositionType::Absolute,
+                position: Rect {
+                    top: Val::Px(15.0),
+                    left: Val::Px(15.0),
+                    ..Default::default()
+                },
+                ..Default::default()
+            },
+            text: Text {
+                sections: vec![
+                    TextSection {
+                        value: format!("TURN {}\n", global_data.turn),
+                        style: text_styles.love_bug_small.clone(),
+                        ..Default::default()
+                    },
+                ],
+                ..Default::default()
+            },
+            transform: Default::default(),
+            ..Default::default()
+        })
+        .insert(Level);
+
+    commands
+        .spawn_bundle(TextBundle {
+            style: Style {
+                align_self: AlignSelf::FlexEnd,
+                position_type: PositionType::Absolute,
+                position: Rect {
+                    bottom: Val::Px(15.0),
+                    left: Val::Px(15.0),
+                    ..Default::default()
+                },
+                ..Default::default()
+            },
+            text: Text::with_section(
+                "EXTRA COINS: 0".to_string(),
+                text_styles.love_bug_small.clone(),
+                Default::default(),
+            ),
+            transform: Default::default(),
+            ..Default::default()
+        })
+        .insert(ExtraCoins);
+
+    commands.spawn_bundle(TextBundle {
+        style: Style {
+            align_self: AlignSelf::FlexEnd,
+            position_type: PositionType::Absolute,
+            position: Rect {
+                bottom: Val::Px(15.0),
+                right: Val::Px(15.0),
+                ..Default::default()
+            },
+            ..Default::default()
+        },
+        text: Text {
+            sections: vec![
+                TextSection {
+                    value: format!("HP: "),
+                    style: text_styles.love_bug_small.clone(),
+                    ..Default::default()
+                },
+            ],
+            ..Default::default()
+        },
+        transform: Default::default(),
+        ..Default::default()
+    }).insert(PlayerHP);
 }
 
 fn to_base_height(p: FightPlayers) -> FightSlotHeight {
@@ -449,4 +547,23 @@ fn on_exit(
             FightPlayers::MyFoe => commands.entity(e).insert(MyFoe),
         };
     }
+}
+
+
+fn update_ui(
+    mut queries: QuerySet<(
+        Query<&PlayerData, With<MySelf>>,
+        Query<&mut Text, With<ExtraCoins>>,
+        Query<&mut Text, With<PlayerHP>>
+    )>,
+) {
+    let player_data = queries.q0().single().expect("No data for the player");
+    let extra_coins = player_data.coins;
+    let hp = player_data.hp;
+
+    let mut coins_text = queries.q1_mut().single_mut().expect("Coins text not found.");
+    coins_text.sections[0].value = format!("EXTRA COINS: + {}", extra_coins);
+
+    let mut hp_text = queries.q2_mut().single_mut().expect("HP text not found.");
+    hp_text.sections[0].value = format!("HP: {}", hp);
 }
