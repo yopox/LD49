@@ -10,8 +10,7 @@ use crate::font::TextStyles;
 use crate::GlobalData;
 use crate::loading::TextureAssets;
 use crate::loading::AudioAssets;
-use crate::Handles;
-use crate::ui::{animate, animate_fast, animate_switch, Draggable, Dragged, DROP_BORDER, Dropped, easing, RemoveAfter, StateBackground, TransitionOver, TranslationAnimation};
+use crate::ui::{animate, animate_fast, animate_switch, DisplayBetweenAnimation, Draggable, Dragged, DROP_BORDER, Dropped, easing, RemoveAfter, StateBackground, TransitionOver, TranslationAnimation};
 use crate::util::{card_transform, cleanup_system, Coins, Corners, Level, overlap, PlayerHP, Slot, text_bundle_at_corner, Z_ABILITY, Z_BACKGROUND, Z_BOB};
 
 pub struct ShopPlugin;
@@ -290,7 +289,7 @@ fn display_ability_animation(
     mut stack_query: Query<(Entity, &mut AbilitiesStack)>,
     card_query: Query<(&ShopSlot, &Card)>,
     mut commands: Commands,
-    handles: Res<Handles>,
+    handles: Res<TextureAssets>,
 ) {
     if let Ok((entity_stack, mut ab_stack)) = stack_query.single_mut() {
         let t = time.seconds_since_startup();
