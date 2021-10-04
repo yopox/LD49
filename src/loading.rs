@@ -120,6 +120,17 @@ pub struct TextureAssets {
     #[asset(color_material)]
     #[asset(path = "MERCHANT STORE.png")]
     pub shop_bob: Handle<ColorMaterial>,
+
+    #[asset(color_material)]
+    #[asset(path = "_ACTION_4.png")]
+    pub refresh_button: Handle<ColorMaterial>,
+    #[asset(color_material)]
+    #[asset(path = "_ACTION_5.png")]
+    pub freeze_button: Handle<ColorMaterial>,
+    #[asset(color_material)]
+    #[asset(path = "_ACTION_6.png")]
+    pub upgrade_button: Handle<ColorMaterial>,
+
     #[asset(color_material)]
     #[asset(path = "ACTIONS BIS1.png")]
     pub heart: Handle<ColorMaterial>,

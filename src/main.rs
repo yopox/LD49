@@ -38,7 +38,7 @@ struct MainCamera;
 
 fn main() {
     let mut app = App::build();
-    AssetLoader::new(AppState::Loading, AppState::Title)
+    AssetLoader::new(AppState::Loading, AppState::Shop)
         .with_collection::<TextureAssets>()
         .with_collection::<AudioAssets>()
         .build(&mut app);

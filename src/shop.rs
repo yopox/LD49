@@ -1,11 +1,11 @@
 use std::cmp::{max, min};
 
-use bevy::math::{vec2, vec3};
+use bevy::math::{vec2, vec3, Vec4Swizzles};
 use bevy::prelude::*;
 use bevy_kira_audio::{Audio, AudioChannel, AudioPlugin};
 use rand::Rng;
 
-use crate::{AppState, HEIGHT, MySelf, PlayerData, WIDTH};
+use crate::{AppState, HEIGHT, MainCamera, MySelf, PlayerData, WIDTH};
 use crate::card::*;
 use crate::font::TextStyles;
 use crate::GlobalData;
@@ -14,7 +14,7 @@ use crate::loading::TextureAssets;
 use crate::shop_manager::ShopManager;
 use crate::shop_rules::ShopRules;
 use crate::ui::{animate, animate_fast, animate_switch, DisplayBetweenAnimation, Draggable, Dragged, DROP_BORDER, Dropped, easing, RemoveAfter, StateBackground, TransitionOver, TranslationAnimation};
-use crate::util::{card_transform, cleanup_system, Coins, Corners, Level, overlap, PlayerHP, Slot, text_bundle_at_corner, Z_ABILITY, Z_ANNOUNCEMENT_BG, Z_BACKGROUND, Z_BOB, Z_POPUP_BG, Z_POPUP_TEXT};
+use crate::util::{card_transform, cleanup_system, Coins, Corners, cursor_pos, Level, overlap, PlayerHP, Slot, text_bundle_at_corner, Z_ABILITY, Z_ANNOUNCEMENT_BG, Z_BACKGROUND, Z_BOB, Z_POPUP_BG, Z_POPUP_TEXT};
 
 pub struct ShopPlugin;
 
@@ -58,6 +58,14 @@ struct Bob;
 struct SlotBorder;
 
 struct SlotHovered;
+
+struct RefreshButton;
+
+struct FreezeButton;
+
+struct UpgradeButton;
+
+struct ButtonText;
 
 struct Sold;
 
@@ -110,6 +118,7 @@ impl Plugin for ShopPlugin {
                     .with_system(update_coins.system())
                     .with_system(start_draggable.system())
                     .with_system(display_ability_animation.system())
+                    .with_system(handle_buttons.system())
             )
             .add_system_set(
                 SystemSet::on_exit(AppState::Shop)
@@ -135,7 +144,7 @@ impl Plugin for ShopPlugin {
     }
 }
 
-const SHOP_RULE_POPUP_DURATION: f64 = 10.;
+const SHOP_RULE_POPUP_DURATION: f64 = 1.;
 
 fn init(
     time: Res<Time>,
@@ -302,6 +311,59 @@ fn init(
             )
         )
         .insert(Level);
+
+    commands
+        .spawn_bundle(SpriteBundle {
+            material: handles.refresh_button.clone(),
+            transform: Transform {
+                translation: Vec3::new(1125., HEIGHT - 160., Z_BOB),
+                ..Default::default()
+            },
+            ..Default::default()
+        })
+        .insert(RefreshButton)
+        .insert(Bob);
+
+    commands
+        .spawn_bundle(SpriteBundle {
+            material: handles.freeze_button.clone(),
+            transform: Transform {
+                translation: Vec3::new(1125., HEIGHT - 300., Z_BOB),
+                ..Default::default()
+            },
+            ..Default::default()
+        })
+        .insert(FreezeButton)
+        .insert(Bob);
+
+    commands
+        .spawn_bundle(SpriteBundle {
+            material: handles.upgrade_button.clone(),
+            transform: Transform {
+                translation: Vec3::new(1125., HEIGHT - 500., Z_BOB),
+                ..Default::default()
+            },
+            ..Default::default()
+        })
+        .insert(UpgradeButton)
+        .insert(Bob);
+
+    commands
+        .spawn_bundle(Text2dBundle {
+            text: Text::with_section("Welcome to the shop!",
+                                     text_styles.love_bug_small.clone(),
+                                     TextAlignment {
+                                         horizontal: HorizontalAlign::Center,
+                                         ..Default::default()
+                                     }),
+            transform: Transform {
+                translation: Vec3::new(WIDTH / 2., HEIGHT - 50., 1.),
+                ..Default::default()
+            },
+            ..Default::default()
+        })
+        .insert(ButtonText)
+        .insert(Bob);
 }
 
 fn draw_effect(material: Handle<ColorMaterial>, slot: ShopSlot) -> SpriteBundle {
@@ -772,6 +834,52 @@ fn start_draggable(
                     vec!["REMAINING TIME 60s".to_string()],
                     &text_styles.love_bug_small,
                 )).insert(BeganShop(time.seconds_since_startup()));
+        }
+    }
+}
+
+fn handle_buttons(
+    mut player_data: Query<&mut PlayerData, With<MySelf>>,
+    btn: Res<Input<MouseButton>>,
+    windows: Res<Windows>,
+    shop_values: Res<ShopValues>,
+    queries: QuerySet<(
+        Query<&Transform, With<MainCamera>>,
+        Query<&Transform, With<RefreshButton>>,
+        Query<&Transform, With<FreezeButton>>,
+        Query<&Transform, With<UpgradeButton>>,
+    )>,
+    mut button_text: Query<&mut Text, With<ButtonText>>,
+) {
+    let window = windows.get_primary().unwrap();
+    if let Some(cursor) = cursor_pos(window, queries.q0().single().unwrap()) {
+
+        let mut player_data = player_data.single_mut().unwrap();
+
+        let transform = queries.q1().single().unwrap();
+        if overlap(cursor.xyz(), transform.translation, (100., 100.)) {
+            button_text.single_mut().unwrap().sections[0].value = format!("Refresh cards for {} coins.", shop_values.buy);
+            return;
+        }
+
+        let transform = queries.q2().single().unwrap();
+        if overlap(cursor.xyz(), transform.translation, (100., 100.)) {
+            button_text.single_mut().unwrap().sections[0].value = format!("Freeze cards for {} coins.", shop_values.freeze);
+            return;
+        }
+
+        let transform = queries.q3().single().unwrap();
+        if overlap(cursor.xyz(), transform.translation, (100., 100.)) {
+            let value = match player_data.shop_level {
+                1 => 4,
+                2 => 6,
+                3 => 8,
+                _ => -1,
+            };
+            if value == -1 {
+                button_text.single_mut().unwrap().sections[0].value = "The shop can't be upgraded anymore.";
+                return;
+            }
         }
     }
 }
