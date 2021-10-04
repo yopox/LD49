@@ -8,7 +8,7 @@ use crate::font::TextStyles;
 use crate::GlobalData;
 use crate::Handles;
 use crate::ui::{animate, animate_switch, animate_fast, Draggable, Dragged, DROP_BORDER, Dropped, easing, TranslationAnimation, TransitionOver};
-use crate::util::{card_transform, overlap, Slot};
+use crate::util::{card_transform, overlap, Slot, Z_BACKGROUND, Z_BOB};
 
 pub struct ShopPlugin;
 pub struct Coins;
@@ -49,6 +49,7 @@ impl Slot for ShopSlot {
     }
 }
 
+struct Bob;
 struct SlotBorder;
 struct SlotHovered;
 struct Sold;
@@ -150,11 +151,25 @@ fn init(
     commands.spawn_bundle(SpriteBundle {
         material: handles.shop_bg.clone(),
         transform: Transform {
-            translation: Vec3::new(WIDTH / 2., HEIGHT / 2., 0.),
+            translation: Vec3::new(WIDTH / 2., HEIGHT / 2., Z_BACKGROUND),
             ..Default::default()
         },
         ..Default::default()
     });
+
+    // Shopkeeper
+    let bob_slot = ShopSlot { row: ShopSlots::SELL, id: 0 };
+    commands
+        .spawn_bundle(SpriteBundle {
+            material: handles.shop_bob.clone(),
+            transform: Transform {
+                translation: Vec3::new(bob_slot.x(), bob_slot.y(), Z_BOB),
+                scale: Vec3::new(CARD_SCALE, CARD_SCALE, 1.),
+                ..Default::default()
+            },
+            ..Default::default()
+        })
+        .insert(Bob);
 
     // Slot border
     commands

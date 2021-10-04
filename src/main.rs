@@ -35,6 +35,7 @@ pub struct Handles {
 
     pub shop_bg: Handle<ColorMaterial>,
     pub slot_border: Handle<ColorMaterial>,
+    pub shop_bob: Handle<ColorMaterial>,
 }
 
 struct MainCamera;
@@ -76,6 +77,7 @@ fn setup(
 
         shop_bg: materials.add(asset_server.load("shop.png").into()),
         slot_border: materials.add(asset_server.load("slot_border.png").into()),
+        shop_bob: materials.add(asset_server.load("MERCHANT STORE.png").into()),
     });
 
     // Spawn camera
