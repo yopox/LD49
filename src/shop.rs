@@ -81,7 +81,7 @@ const MIN_COINS: u16 = 3;
 pub struct ShopValues {
     pub buy: i8,
     pub sell: i8,
-    pub refresh: i8,
+    pub refresh: u16,
     pub freeze: u16,
     pub gold_limit: u16,
     pub timer: f64,
@@ -872,9 +872,13 @@ fn handle_buttons(
         Query<&Transform, With<FreezeButton>>,
         Query<&Transform, With<UpgradeButton>>,
     )>,
-    card_query: Query<(&Card, &ShopSlot)>,
+    card_query: Query<(Entity, &Card, &ShopSlot)>,
     mut button_text: Query<&mut Text, With<ButtonText>>,
     mut frozen_shop: ResMut<ShopFrozen>,
+    mut commands: Commands,
+    mut global_data: ResMut<GlobalData>,
+    handles: Res<TextureAssets>,
+    mut ev_new_card: EventWriter<NewCard>,
 ) {
     let window = windows.get_primary().unwrap();
     if let Some(cursor) = cursor_pos(window, queries.q0().single().unwrap()) {
@@ -883,6 +887,22 @@ fn handle_buttons(
         let transform = queries.q1().single().unwrap();
         if overlap(cursor.xyz(), transform.translation, (100., 100.)) {
             button_text.single_mut().unwrap().sections[0].value = format!("Refresh cards for {} coins.", shop_values.buy);
+            if btn.just_pressed(MouseButton::Left) && player_data.coins >= shop_values.refresh {
+                player_data.coins -= shop_values.refresh;
+                *frozen_shop = ShopFrozen(None);
+                for (e, &card, &slot) in card_query.iter() {
+                    if slot.row == ShopSlots::SHOP {
+                        commands.entity(e).despawn_recursive();
+                    }
+                }
+                for (i, &base_card) in ShopManager::shop_inventory(player_data.shop_level, &mut global_data.rng).iter().enumerate() {
+                    let id = global_data.next_card_id;
+                    global_data.next_card_id += 1;
+                    add_card(Card::new(base_card, id),
+                             ShopSlot { row: ShopSlots::SHOP, id: i as u8 },
+                             &mut commands, &handles, &mut ev_new_card);
+                }
+            }
             return;
         }
 
@@ -898,7 +918,7 @@ fn handle_buttons(
                 player_data.coins -= shop_values.freeze;
                 frozen_shop.0 = Some(
                     card_query.iter()
-                        .filter_map(|(&card, &slot)|
+                        .filter_map(|(_, &card, &slot)|
                             if slot.row == ShopSlots::SHOP {
                                 Some((slot.id, card))
                             } else { None })
