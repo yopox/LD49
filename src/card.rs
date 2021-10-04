@@ -501,7 +501,7 @@ fn init_popup(
                                                  ..Default::default()
                                              }),
                     transform: Transform {
-                        translation: Vec3::new(-CARD_WIDTH / 4. / CARD_SCALE + 24., -CARD_HEIGHT / 2. / CARD_SCALE + 24., Z_STATS),
+                        translation: Vec3::new(-CARD_WIDTH / 4. / CARD_SCALE + 32., -CARD_HEIGHT / 2. / CARD_SCALE + 23., Z_STATS),
                         ..Default::default()
                     },
                     ..Default::default()
@@ -517,7 +517,7 @@ fn init_popup(
                                                  ..Default::default()
                                              }),
                     transform: Transform {
-                        translation: Vec3::new(CARD_WIDTH / 4. / CARD_SCALE - 16., -CARD_HEIGHT / 2. / CARD_SCALE + 24., Z_STATS),
+                        translation: Vec3::new(CARD_WIDTH / 4. / CARD_SCALE + 10., -CARD_HEIGHT / 2. / CARD_SCALE + 23., Z_STATS),
                         ..Default::default()
                     },
                     ..Default::default()
