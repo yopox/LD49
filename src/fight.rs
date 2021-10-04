@@ -19,6 +19,7 @@ impl Plugin for FightPlugin {
             .add_event::<StatsChange>()
             .add_event::<ApplyEffect>()
             .add_event::<PlayersAttack>()
+            .add_event::<GoldChange>()
             .add_system_set(
                 SystemSet::on_enter(AppState::Fight)
                     .with_system(setup_fight.system().label("setup_fight"))
@@ -36,6 +37,7 @@ impl Plugin for FightPlugin {
                     .with_system(remove_card_producer.system())
                     .with_system(apply_effect_producer.system())
                     .with_system(players_attack_producer.system())
+                    .with_system(gold_change_producer.system())
             )
             .add_system_set(
                 SystemSet::on_exit(AppState::Fight)
@@ -43,9 +45,7 @@ impl Plugin for FightPlugin {
             )
             .add_system_set(
                 SystemSet::on_exit(AppState::Fight)
-                    .before("on-exit").label("cleanup")
-                    .with_system(cleanup_system::<MySelf>.system())
-                    .with_system(cleanup_system::<MyFoe>.system())
+                    .after("on-exit").label("cleanup")
                     .with_system(cleanup_system::<FightSlot>.system())
                     .with_system(cleanup_system::<FightEventsStack>.system())
                     .with_system(cleanup_system::<StateBackground>.system())
@@ -53,6 +53,7 @@ impl Plugin for FightPlugin {
                     .with_system(cleanup_system::<Level>.system())
                     .with_system(cleanup_system::<MyHP>.system())
                     .with_system(cleanup_system::<FoeHP>.system())
+                    .with_system(cleanup_system::<FightBackup>.system())
             )
         ;
     }
@@ -206,11 +207,14 @@ fn setup_fight(
                 }
             }
             CombatEvents::GoldChange { player_id, change } => {
-                if player_id == my_id {
+                let who = if player_id == my_id {
                     myself_cloned.extra_coins = (myself_cloned.extra_coins as i32 + change) as u16;
+                    FightPlayers::MySelf
                 } else {
                     my_foe_cloned.extra_coins = (my_foe_cloned.extra_coins as i32 + change) as u16;
-                }
+                    FightPlayers::MyFoe
+                };
+                stack.push(FightEvents::GoldChange(GoldChange { who, change }));
             }
             CombatEvents::PlayersAttack { att_id, change_def_hp } => {
                 let on = if att_id == my_id {
@@ -339,6 +343,7 @@ enum FightEvents {
     StatsChange(StatsChange),
     ApplyEffect(ApplyEffect),
     PlayersAttack(PlayersAttack),
+    GoldChange(GoldChange),
 }
 
 fn event_dispatcher(
@@ -353,6 +358,7 @@ fn event_dispatcher(
     mut ew_stats_change: EventWriter<StatsChange>,
     mut ew_apply_effect: EventWriter<ApplyEffect>,
     mut ew_players_attack: EventWriter<PlayersAttack>,
+    mut ew_gold_change: EventWriter<GoldChange>,
     mut app_state: ResMut<State<AppState>>,
 ) {
     let mut should_dispatch = false;
@@ -380,6 +386,9 @@ fn event_dispatcher(
                 }
                 FightEvents::PlayersAttack(pa) => {
                     ew_players_attack.send(pa);
+                }
+                FightEvents::GoldChange(g) => {
+                    ew_gold_change.send(g);
                 }
             }
         } else {
@@ -510,17 +519,57 @@ fn players_attack_producer(
 }
 
 fn on_exit(
-    query: Query<(Entity, &FightBackup)>,
-    mut commands: Commands,
+    mut query: QuerySet<(
+        Query<&mut PlayerData, With<MySelf>>,
+        Query<&mut PlayerData, With<MyFoe>>,
+        Query<(&PlayerData, &FightBackup)>
+    )>
 ) {
-    for (e, &FightBackup { who }) in query.iter() {
+    let mut my_new_data = None;
+    let mut foe_new_data = None;
+    for (data, &FightBackup { who}) in query.q2().iter() {
         match who {
-            FightPlayers::MySelf => commands.entity(e).insert(MySelf),
-            FightPlayers::MyFoe => commands.entity(e).insert(MyFoe),
-        };
+            FightPlayers::MySelf => {
+                my_new_data = Some(data.clone());
+            }
+            FightPlayers::MyFoe => {
+                foe_new_data = Some(data.clone());
+            }
+        }
+    }
+
+    if let Some(data) = my_new_data {
+        let mut my_data = query.q0_mut().single_mut().expect("There should be one main player");
+        *my_data = data;
+    }
+    if let Some(data) = foe_new_data {
+        let mut foe_data = query.q1_mut().single_mut().expect("There should be one main player");
+        *foe_data = data;
     }
 }
 
+fn gold_change_producer(
+    mut er: EventReader<GoldChange>,
+    mut query: QuerySet<(
+        Query<&mut PlayerData, With<MySelf>>,
+        Query<&mut PlayerData, With<MyFoe>>,
+    )>,
+    mut commands: Commands,
+    time: Res<Time>,
+) {
+    let mut should_trigger_wait = false;
+    for GoldChange { who, change } in er.iter() {
+        let mut player_data = match who {
+            FightPlayers::MySelf => query.q0_mut().single_mut().expect("Cannot get main player"),
+            FightPlayers::MyFoe => query.q1_mut().single_mut().expect("Cannot get opponent"),
+        };
+        player_data.hp = (player_data.hp as i32 + change) as u16;
+        should_trigger_wait = true;
+    }
+    if should_trigger_wait {
+        commands.spawn().insert(WaitUntil(time.seconds_since_startup() + 0.5));
+    }
+}
 
 fn update_ui(
     player_queries: QuerySet<(
