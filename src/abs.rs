@@ -67,7 +67,7 @@ fn apply_effect(card_index: u8, opponent_card_index: u8, player_hb: &mut PlayerD
             opponent_hb.board.retain(|card| { card.hp > 0 });
         }
         Abilities::Pillage => events.push(CombatEvents::GoldChange { change: 1, player_id }),
-        Abilities::Trap => events.push(CombatEvents::StatsChange { player_id: opponent_id, hp: 0, at: opponent_card.at as i32 / 2, card_index: opponent_card_index }),
+        Abilities::Trap => events.push(CombatEvents::StatsChange { player_id: opponent_id, hp: 0, at: opponent_card.atk as i32 / 2, card_index: opponent_card_index }),
         Abilities::Multiplication => todo!("Not yet implemented"),
         Abilities::Poisonous => events.push(CombatEvents::Death { player_id: opponent_id, card_index: opponent_card_index }),
         _ => {}
@@ -96,8 +96,8 @@ fn simulate_attack<T: Rng>(att_card_index: usize, att_hb: &mut PlayerData, def_h
 
     let att_card_index = att_card_index as u8;
 
-    let def_post_hp = def_card.hp as i32 - att_card.at as i32;
-    events.push(CombatEvents::Attack { att_card_index, att_id: att_hb.id, def_card_index, change_def_hp: -(min2(def_card.hp, att_card.at) as i32) });
+    let def_post_hp = def_card.hp as i32 - att_card.atk as i32;
+    events.push(CombatEvents::Attack { att_card_index, att_id: att_hb.id, def_card_index, change_def_hp: -(min2(def_card.hp, att_card.atk) as i32) });
 
     if def_post_hp <= 0 {
         // Dies
@@ -124,8 +124,8 @@ fn simulate_attack<T: Rng>(att_card_index: usize, att_hb: &mut PlayerData, def_h
     let def_card = &def_hb.board[def_card_index as usize];
 
     // Counter-attack
-    let att_post_hp = att_card.hp as i32 - def_card.at as i32;
-    events.push(CombatEvents::Attack { att_id: def_hb.id, def_card_index: att_card_index, att_card_index: def_card_index, change_def_hp: -(min2(att_card.hp, def_card.at) as i32) });
+    let att_post_hp = att_card.hp as i32 - def_card.atk as i32;
+    events.push(CombatEvents::Attack { att_id: def_hb.id, def_card_index: att_card_index, att_card_index: def_card_index, change_def_hp: -(min2(att_card.hp, def_card.atk) as i32) });
 
     if att_post_hp <= 0 {
         // Dies

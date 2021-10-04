@@ -10,7 +10,7 @@ use derive_more::Display;
 use crate::{Handles, HEIGHT, MainCamera, WIDTH};
 use crate::font::*;
 use crate::ui::Dragged;
-use crate::util::{cursor_pos, overlap, Z_POPUP_BG, Z_POPUP_TEXT};
+use crate::util::{cursor_pos, overlap, Z_POPUP_BG, Z_POPUP_TEXT, Z_STATS, Z_STATS_BG};
 
 pub const CARD_SCALE: f32 = 0.4;
 pub const CARD_WIDTH: f32 = 270. * CARD_SCALE;
@@ -29,7 +29,7 @@ pub struct Card {
     pub base_card: BaseCards,
     pub id: u32,
     pub hp: u16,
-    pub at: u16,
+    pub atk: u16,
     pub played: u8,
 }
 
@@ -39,7 +39,7 @@ impl Default for Card {
             base_card: BaseCards::MERCH_8,
             id: 0,
             hp: 0,
-            at: 0,
+            atk: 0,
             played: 0,
         }
     }
@@ -146,10 +146,10 @@ impl BaseCards {
 impl Card {
     pub(crate) fn new(card_type: BaseCards, id: u32) -> Self {
         match card_type {
-            BaseCards::MUSH_8 => Card { id, base_card: card_type, at: 8, hp: 6, ..Default::default() },
-            BaseCards::MERCH_8 => Card { id, base_card: card_type, at: 5, hp: 9, ..Default::default() },
-            BaseCards::SPID_8 => Card { id, base_card: card_type, at: 4, hp: 4, ..Default::default() },
-            BaseCards::ROB_8 => Card { id, base_card: card_type, at: 3, hp: 3, ..Default::default() },
+            BaseCards::MUSH_8 => Card { id, base_card: card_type, atk: 8, hp: 6, ..Default::default() },
+            BaseCards::MERCH_8 => Card { id, base_card: card_type, atk: 5, hp: 9, ..Default::default() },
+            BaseCards::SPID_8 => Card { id, base_card: card_type, atk: 4, hp: 4, ..Default::default() },
+            BaseCards::ROB_8 => Card { id, base_card: card_type, atk: 3, hp: 3, ..Default::default() },
         }
     }
 }
@@ -157,6 +157,7 @@ impl Card {
 pub(crate) struct CardPlugin;
 
 pub struct NewCard(pub Entity, pub Card);
+
 pub struct StatsChanged(pub Entity);
 
 struct Prepare;
@@ -175,7 +176,8 @@ impl Plugin for CardPlugin {
 
 struct Popup;
 struct PopupBackground;
-struct Stats;
+struct AtkStat;
+struct HpStat;
 struct StatsBackground;
 
 const POPUP_X_OFFSET: f32 = 20.;
@@ -183,14 +185,14 @@ const POPUP_PADDING: f32 = 10.;
 
 fn init_popup(
     mut commands: Commands,
+    handles: Res<Handles>,
     mut ev_new_card: EventReader<NewCard>,
-    mut materials: ResMut<Assets<ColorMaterial>>,
     text_styles: Res<TextStyles>,
 ) {
     for new_card in ev_new_card.iter() {
         let base_card = new_card.1.base_card;
         commands.entity(new_card.0).with_children(|parent| {
-            let text = parent
+            parent
                 .spawn_bundle(Text2dBundle {
                     text: Text {
                         sections: vec![
@@ -220,12 +222,11 @@ fn init_popup(
                     ..Default::default()
                 })
                 .insert(Popup)
-                .insert(Prepare)
-                .id();
+                .insert(Prepare);
 
-            let background = parent
+            parent
                 .spawn_bundle(SpriteBundle {
-                    material: materials.add(Color::rgb(244. / 255., 237. / 255., 219. / 255.).into()),
+                    material: handles.background_color.clone(),
                     sprite: Sprite::new(Vec2::new(0.0, 0.0)),
                     visible: Visible {
                         is_visible: false,
@@ -238,8 +239,51 @@ fn init_popup(
                     ..Default::default()
                 })
                 .insert(PopupBackground)
-                .insert(Prepare)
-                .id();
+                .insert(Prepare);
+
+            parent
+                .spawn_bundle(SpriteBundle {
+                    material: handles.background_color.clone(),
+                    sprite: Sprite::new(Vec2::new(254.0, 50.0)),
+                    transform: Transform {
+                        translation: Vec3::new(0., (-CARD_HEIGHT / 2. + 12.) / CARD_SCALE, Z_STATS_BG),
+                        ..Default::default()
+                    },
+                    ..Default::default()
+                })
+                .insert(StatsBackground);
+
+            parent
+                .spawn_bundle(Text2dBundle {
+                    text: Text::with_section(format!("{} HP", new_card.1.hp),
+                                             text_styles.stats.clone(),
+                                             TextAlignment {
+                                                 horizontal: HorizontalAlign::Center,
+                                                 ..Default::default()
+                                             }),
+                    transform: Transform {
+                        translation: Vec3::new(-CARD_WIDTH / 4. / CARD_SCALE + 6., -CARD_HEIGHT / 2. / CARD_SCALE + 10., Z_STATS),
+                        ..Default::default()
+                    },
+                    ..Default::default()
+                })
+                .insert(HpStat);
+
+            parent
+                .spawn_bundle(Text2dBundle {
+                    text: Text::with_section(format!("{} ATK", new_card.1.atk),
+                                             text_styles.stats.clone(),
+                                             TextAlignment {
+                                                 horizontal: HorizontalAlign::Center,
+                                                 ..Default::default()
+                                             }),
+                    transform: Transform {
+                        translation: Vec3::new(CARD_WIDTH / 4. / CARD_SCALE - 6., -CARD_HEIGHT / 2. / CARD_SCALE + 10., Z_STATS),
+                        ..Default::default()
+                    },
+                    ..Default::default()
+                })
+                .insert(HpStat);
         });
     }
 }

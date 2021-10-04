@@ -1,6 +1,7 @@
 use bevy::prelude::*;
 
 pub struct TextStyles {
+    pub stats: TextStyle,
     pub bird_seed_small: TextStyle,
     pub bird_seed_title: TextStyle,
     pub love_bug_small: TextStyle,
@@ -13,7 +14,13 @@ pub fn load_fonts(
 ) {
     let bird_seed: Handle<Font> = asset_server.load("ChevyRay - Bird Seed.ttf");
     let love_bug: Handle<Font> = asset_server.load("ChevyRay - Love Bug.ttf");
+    let skullboy: Handle<Font> = asset_server.load("ChevyRay - Skullboy.ttf");
     commands.insert_resource(TextStyles {
+        stats: TextStyle {
+            font: skullboy.clone(),
+            font_size: 12.0,
+            color: Color::BLACK
+        },
         bird_seed_small: TextStyle {
             font: bird_seed.clone(),
             font_size: 20.0,

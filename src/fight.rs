@@ -195,7 +195,7 @@ fn setup_fight(
                         if player_id == my_id {
                             for mut card in myself_cloned.board.iter_mut() {
                                 if card.id == card_id {
-                                    card.at += 1;
+                                    card.atk += 1;
                                 }
                             }
                         }
@@ -431,7 +431,7 @@ fn stat_change_producer(
             if slot == event.slot {
                 println!("Changing stats at slot {}.{}", slot.who, slot.index);
                 card.hp = (card.hp as i32 + event.hp) as u16;
-                card.at = (card.at as i32 + event.at) as u16;
+                card.atk = (card.atk as i32 + event.at) as u16;
                 commands.spawn().insert(WaitUntil(time.seconds_since_startup() + 0.5));
             }
         }
