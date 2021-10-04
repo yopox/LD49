@@ -1,7 +1,11 @@
 use bevy::prelude::*;
 use bevy_kira_audio::{Audio, AudioChannel, AudioPlugin};
+use rand::prelude::StdRng;
+use rand::SeedableRng;
 
-use crate::{AppState, HEIGHT, WIDTH};
+use crate::{AppState, GlobalData, HEIGHT, MySelf, PlayerData, WIDTH};
+use crate::card::{BaseCards, Card};
+use crate::fight::MyFoe;
 use crate::font::TextStyles;
 use crate::loading::{AudioAssets, TextureAssets};
 use crate::ui::StateBackground;
@@ -15,6 +19,7 @@ impl Plugin for TitlePlugin {
             .add_system_set(
                 SystemSet::on_enter(AppState::Title)
                     .with_system(display_title.system())
+                    .with_system(setup_data.system())
             )
             .add_system_set(
                 SystemSet::on_update(AppState::Title)
@@ -72,4 +77,37 @@ fn click_to_shop(
     if btn.just_pressed(MouseButton::Left) {
         app_state.set(AppState::Shop).unwrap();
     }
+}
+
+fn setup_data(
+    mut commands: Commands,
+) {
+    commands.spawn().insert(
+        PlayerData {
+            id: 0,
+            name: "H".to_string(),
+            hand: vec![
+                Card::new(BaseCards::SPID_8, 0),
+            ],
+            board: vec![
+                Card::new(BaseCards::ROB_8, 1),
+                Card::new(BaseCards::MUSH_8, 2),
+            ],
+            ..Default::default()
+        }).insert(MySelf);
+    commands.spawn().insert(
+        PlayerData {
+            id: 1,
+            name: "L".to_string(),
+            board: vec![
+                Card::new(BaseCards::SPID_8, 3),
+                Card::new(BaseCards::MERCH_8, 4),
+            ],
+            ..Default::default()
+        }).insert(MyFoe);
+
+    commands.insert_resource(GlobalData {
+        next_card_id: 5, // WARNING: the number of cards created before in this function
+        ..Default::default()
+    });
 }

@@ -41,7 +41,7 @@ struct MainCamera;
 
 fn main() {
     let mut app = App::build();
-    AssetLoader::new(AppState::Loading, AppState::Shop)
+    AssetLoader::new(AppState::Loading, AppState::Title)
         .with_collection::<TextureAssets>()
         .with_collection::<AudioAssets>()
         .build(&mut app);
@@ -65,7 +65,6 @@ fn main() {
         .add_plugin(GameOverPlugin)
         .add_startup_system(setup.system())
         .add_startup_system(crate::font::load_fonts.system())
-        .add_startup_system(setup_data.system())
         .run();
 }
 
@@ -126,36 +125,12 @@ pub struct GlobalData {
     next_card_id: u32,
 }
 
-fn setup_data(
-    mut commands: Commands,
-) {
-    commands.spawn().insert(
-        PlayerData {
-            id: 0,
-            name: "H".to_string(),
-            hand: vec![
-                Card::new(BaseCards::SPID_8, 0),
-            ],
-            board: vec![
-                Card::new(BaseCards::ROB_8, 1),
-                Card::new(BaseCards::MUSH_8, 2),
-            ],
-            ..Default::default()
-        }).insert(MySelf);
-    commands.spawn().insert(
-        PlayerData {
-            id: 1,
-            name: "L".to_string(),
-            board: vec![
-                Card::new(BaseCards::SPID_8, 3),
-                Card::new(BaseCards::MERCH_8, 4),
-            ],
-            ..Default::default()
-        }).insert(MyFoe);
-
-    commands.insert_resource(GlobalData {
-        rng: StdRng::seed_from_u64(0u64),
-        turn: 0,
-        next_card_id: 5, // WARNING: the number of cards created before in this function
-    });
+impl Default for GlobalData {
+    fn default() -> Self {
+        GlobalData {
+            rng: StdRng::from_entropy(),
+            turn: 0,
+            next_card_id: 0,
+        }
+    }
 }

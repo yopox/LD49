@@ -35,6 +35,7 @@ impl Plugin for GameOverPlugin {
                 SystemSet::on_exit(AppState::GameOver)
                     .with_system(cleanup_system::<StateBackground>.system())
                     .with_system(cleanup_system::<Over>.system())
+                    .with_system(cleanup_system::<PlayerData>.system())
             )
         ;
     }
