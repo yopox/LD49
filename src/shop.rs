@@ -123,14 +123,19 @@ fn init(
     mut global_data: ResMut<GlobalData>,
     handles: Res<Handles>,
     text_styles: Res<TextStyles>,
-    query: Query<&PlayerData, With<MySelf>>,
+    mut query: Query<&mut PlayerData, With<MySelf>>,
 ) {
-    let player_data = query.single().expect(
+    let mut player_data = query.single_mut().expect(
         "There should be one and only one player with myself"
     );
 
+    global_data.turn += 1;
+
     let costs = ShopCosts::default();
-    commands.insert_resource(CoinLimit(max(MIN_COINS, min(global_data.turn, costs.gold_limit))));
+    let coins = max(MIN_COINS, min(global_data.turn, costs.gold_limit))
+        + player_data.extra_coins;
+    player_data.coins = coins;
+    commands.insert_resource(CoinLimit(coins));
     commands.insert_resource(costs);
 
     for (i, &card) in player_data.board.iter().enumerate() {
@@ -510,19 +515,23 @@ fn on_exit(
     mut player_data: Query<&mut PlayerData, With<MySelf>>,
 ) {
     let mut player_data = player_data.single_mut().expect("There should only be one player tagged with myself");
-    player_data.board = vec![];
-    player_data.hand = vec![];
+    let mut new_board: Vec<(u8, Card)> = vec![];
+    let mut new_hand: Vec<(u8, Card)> = vec![];
     for (e, &card, slot) in cards.iter() {
         match slot.row {
             ShopSlots::BOARD => {
-                player_data.board.push(card);
+                new_board.push((slot.id, card));
             }
             ShopSlots::HAND => {
-                player_data.hand.push(card);
+                new_hand.push((slot.id, card));
             }
             ShopSlots::SHOP => {}
             ShopSlots::SELL => {}
         };
         commands.entity(e).despawn_recursive();
     }
+    new_board.sort_by_key(|t| t.0);
+    new_hand.sort_by_key(|t| t.0);
+    player_data.board = new_board.iter().map(|t| t.1).collect();
+    player_data.hand = new_hand.iter().map(|t| t.1).collect();
 }
