@@ -316,7 +316,7 @@ fn init(
         .spawn_bundle(SpriteBundle {
             material: handles.refresh_button.clone(),
             transform: Transform {
-                translation: Vec3::new(1125., HEIGHT - 160., Z_BOB),
+                translation: Vec3::new(1155., HEIGHT - 210., Z_BOB),
                 ..Default::default()
             },
             ..Default::default()
@@ -328,7 +328,7 @@ fn init(
         .spawn_bundle(SpriteBundle {
             material: handles.freeze_button.clone(),
             transform: Transform {
-                translation: Vec3::new(1125., HEIGHT - 300., Z_BOB),
+                translation: Vec3::new(1155., HEIGHT - 350., Z_BOB),
                 ..Default::default()
             },
             ..Default::default()
@@ -340,7 +340,7 @@ fn init(
         .spawn_bundle(SpriteBundle {
             material: handles.upgrade_button.clone(),
             transform: Transform {
-                translation: Vec3::new(1125., HEIGHT - 500., Z_BOB),
+                translation: Vec3::new(1155., HEIGHT - 490., Z_BOB),
                 ..Default::default()
             },
             ..Default::default()
@@ -870,17 +870,21 @@ fn handle_buttons(
 
         let transform = queries.q3().single().unwrap();
         if overlap(cursor.xyz(), transform.translation, (100., 100.)) {
-            let value = match player_data.shop_level {
+            let upgrade_cost: i16 = match player_data.shop_level {
                 1 => 4,
                 2 => 6,
                 3 => 8,
                 _ => -1,
             };
-            if value == -1 {
+            if upgrade_cost == -1 {
                 button_text.single_mut().unwrap().sections[0].value = "The shop can't be upgraded anymore.".to_string();
                 return;
             } else {
-                button_text.single_mut().unwrap().sections[0].value = format!("Upgrade the shop for {} coins.", shop_values.freeze);
+                button_text.single_mut().unwrap().sections[0].value = format!("Upgrade the shop for {} coins.", upgrade_cost);
+                if btn.just_pressed(MouseButton::Left) && player_data.coins >= upgrade_cost as u16 {
+                    player_data.coins -= upgrade_cost as u16;
+                    player_data.shop_level += 1;
+                }
                 return;
             }
         }
