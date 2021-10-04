@@ -4,7 +4,7 @@ use derive_more::Display;
 
 use crate::{AppState, GlobalData, Handles, HEIGHT, MySelf, PlayerData, WIDTH};
 use crate::abs::{CombatEvents, simulate_combat};
-use crate::card::{Abilities, Card, CARD_HEIGHT, NewCard};
+use crate::card::{Abilities, Card, CARD_HEIGHT, NewCard, StatsChanged};
 use crate::font::TextStyles;
 use crate::ui::{easing, StateBackground, TranslationAnimation};
 use crate::util::{card_transform, cleanup_system, Coins, Corners, Level, PlayerHP, text_bundle_at_corner, Z_BACKGROUND};
@@ -433,17 +433,19 @@ fn translate_slots(t0: f64, from: FightSlot, to: FightSlot, duration: f64) -> Tr
 
 fn stat_change_producer(
     mut er_stats_change: EventReader<StatsChange>,
-    mut query: Query<(&mut Card, &FightSlot)>,
+    mut query: Query<(Entity, &mut Card, &FightSlot)>,
     mut commands: Commands,
+    mut ev_stats: EventWriter<StatsChanged>,
     time: Res<Time>,
 ) {
     for event in er_stats_change.iter() {
-        for (mut card, &slot) in query.iter_mut() {
+        for (e, mut card, &slot) in query.iter_mut() {
             if slot == event.slot {
                 println!("Changing stats at slot {}.{}", slot.who, slot.index);
                 card.hp = (card.hp as i32 + event.hp) as u16;
                 card.atk = (card.atk as i32 + event.at) as u16;
                 commands.spawn().insert(WaitUntil(time.seconds_since_startup() + 0.5));
+                ev_stats.send(StatsChanged(e));
             }
         }
     }

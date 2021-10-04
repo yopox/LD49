@@ -169,8 +169,9 @@ impl Plugin for CardPlugin {
             .add_event::<StatsChanged>()
             .add_system(init_popup.system().label("popup:init"))
             .add_system(update_size.system().label("popup:update").after("popup:init"))
-            .add_system(update_popup_visibility.system().after("popup:update"));
-        //.add_system(update_background.system().before("popup:update"));
+            .add_system(update_popup_visibility.system().after("popup:update"))
+            .add_system(update_stats.system());
+        //.add_system(update_background.system().before("popup:update"));update_stats
     }
 }
 
@@ -356,6 +357,33 @@ fn update_size(
             bg_transform.translation.x = (CARD_WIDTH / 2. + &size.width / 2. + POPUP_PADDING) / CARD_SCALE;
             bg_transform.translation.y = (CARD_HEIGHT / 2. - &size.height / 2. - POPUP_PADDING) / CARD_SCALE;
             commands.entity(bg_e).remove::<Prepare>();
+        }
+    }
+}
+
+fn update_stats(
+    mut ev_stats: EventReader<StatsChanged>,
+    mut texts: QuerySet<(
+        Query<(&Parent, &mut Text), With<AtkStat>>,
+        Query<(&Parent, &mut Text), With<HpStat>>,
+    )>,
+    cards: Query<&Card>,
+) {
+    for event in ev_stats.iter() {
+        if let Ok(card) = cards.get(event.0) {
+            for (parent, mut text) in texts.q0_mut().iter_mut() {
+                if parent.0 == event.0 {
+                    text.sections[0].value = format!("{} ATK", card.atk);
+                    break;
+                }
+            }
+
+            for (parent, mut text) in texts.q1_mut().iter_mut() {
+                if parent.0 == event.0 {
+                    text.sections[0].value = format!("{} HP", card.hp);
+                    break;
+                }
+            }
         }
     }
 }
