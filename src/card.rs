@@ -25,6 +25,19 @@ pub struct Card {
     pub id: u32,
     pub hp: u16,
     pub at: u16,
+    pub played: u8,
+}
+
+impl Default for Card {
+    fn default() -> Self {
+        Card {
+            card_type: CardTypes::MERCH_8,
+            id: 0,
+            hp: 0,
+            at: 0,
+            played: 0,
+        }
+    }
 }
 
 #[derive(Debug, Display, PartialEq, Eq, Copy, Clone)]
@@ -128,10 +141,10 @@ impl CardTypes {
 impl Card {
     pub(crate) fn new(card_type: CardTypes, id: u32) -> Self {
         match card_type {
-            CardTypes::MUSH_8 => Card { id, card_type, at: 8, hp: 6 },
-            CardTypes::MERCH_8 => Card { id, card_type, at: 5, hp: 9 },
-            CardTypes::SPID_8 => Card { id, card_type, at: 4, hp: 4 },
-            CardTypes::ROB_8 => Card { id, card_type, at: 3, hp: 3 },
+            CardTypes::MUSH_8 => Card { id, card_type, at: 8, hp: 6, ..Default::default() },
+            CardTypes::MERCH_8 => Card { id, card_type, at: 5, hp: 9, ..Default::default() },
+            CardTypes::SPID_8 => Card { id, card_type, at: 4, hp: 4, ..Default::default() },
+            CardTypes::ROB_8 => Card { id, card_type, at: 3, hp: 3, ..Default::default() },
         }
     }
 }

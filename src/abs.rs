@@ -41,7 +41,7 @@ fn get_number_of_cards(b: &PlayerData) -> u8 {
     b.board.len() as u8
 }
 
-fn apply_effect(card_index: u8, opponent_card_index: u8, player_hb: &mut PlayerData, opponent_hb: &mut PlayerData, trigger: Triggers) -> Vec<CombatEvents> {
+fn apply_effect(card_index: u8, opponent_card_index: u8, player_hb: &mut PlayerData, opponent_hb: &mut PlayerData) -> Vec<CombatEvents> {
     let player_card = player_hb.board[card_index as usize];
     let opponent_card = opponent_hb.board[opponent_card_index as usize];
     let player_id = player_hb.id;
@@ -67,7 +67,6 @@ fn apply_effect(card_index: u8, opponent_card_index: u8, player_hb: &mut PlayerD
             opponent_hb.board.retain(|card| { card.hp > 0 });
         }
         Abilities::Pillage => events.push(CombatEvents::GoldChange { change: 1, player_id }),
-        Abilities::Dexterity => todo!("Not yet implemented"),
         Abilities::Trap => events.push(CombatEvents::StatsChange { player_id: opponent_id, hp: 0, at: opponent_card.at as i32 / 2, card_index: opponent_card_index }),
         Abilities::Multiplication => todo!("Not yet implemented"),
         Abilities::Poisonous => events.push(CombatEvents::Death { player_id: opponent_id, card_index: opponent_card_index }),
@@ -85,14 +84,17 @@ fn relu(i: i32) -> u16 {
 #[inline]
 fn min2<T: PartialOrd>(x: T, y: T) -> T { if x < y { x } else { y } }
 
-fn simulate_attack<T: Rng>(att_card_index: u8, att_hb: &mut PlayerData, def_hb: &mut PlayerData, rng: &mut T) -> Vec<CombatEvents> {
-    let def_card_index = rng.gen_range(0..get_number_of_cards(def_hb)) as u8;
+fn simulate_attack<T: Rng>(att_card_index: usize, att_hb: &mut PlayerData, def_hb: &mut PlayerData, rng: &mut T) -> (Vec<CombatEvents>, bool) {
+    let def_card_index = rng.gen_range(0..get_number_of_cards(def_hb));
     let mut events = Vec::with_capacity(2);
+    let mut replay = false;
 
-    let att_card = &att_hb.board[att_card_index as usize];
+    let att_card = &att_hb.board[att_card_index];
     let att_card_trigger = att_card.card_type.trigger();
     let def_card = &def_hb.board[def_card_index as usize];
     let def_card_trigger = def_card.card_type.trigger();
+
+    let att_card_index = att_card_index as u8;
 
     let def_post_hp = def_card.hp as i32 - att_card.at as i32;
     events.push(CombatEvents::Attack { att_card_index, att_id: att_hb.id, def_card_index, change_def_hp: -(min2(def_card.hp, att_card.at) as i32) });
@@ -103,16 +105,16 @@ fn simulate_attack<T: Rng>(att_card_index: u8, att_hb: &mut PlayerData, def_hb: 
 
         // Triggers Kill  or Hit on att
         if att_card_trigger == Triggers::Kill || att_card_trigger == Triggers::Hit {
-            events.append(&mut apply_effect(att_card_index, def_card_index, att_hb, def_hb, att_card_trigger))
+            events.append(&mut apply_effect(att_card_index, def_card_index, att_hb, def_hb))
         }
         // Triggers Death or Hit on def
         if def_card_trigger == Triggers::Death || def_card_trigger == Triggers::Hit {
-            events.append(&mut apply_effect(def_card_index, att_card_index, def_hb, att_hb, def_card_trigger))
+            events.append(&mut apply_effect(def_card_index, att_card_index, def_hb, att_hb))
         }
 
         def_hb.board.remove(def_card_index as usize);
 
-        return events;
+        return (events, false);
     }
 
     // Update card hp
@@ -131,11 +133,11 @@ fn simulate_attack<T: Rng>(att_card_index: u8, att_hb: &mut PlayerData, def_hb: 
 
         // Triggers Kill or Hit on def
         if def_card_trigger == Triggers::Kill || def_card_trigger == Triggers::Hit {
-            events.append(&mut apply_effect(def_card_index, att_card_index, def_hb, att_hb, def_card_trigger))
+            events.append(&mut apply_effect(def_card_index, att_card_index, def_hb, att_hb))
         }
         // Triggers Death or Hit on att
         if att_card_trigger == Triggers::Death || att_card_trigger == Triggers::Hit {
-            events.append(&mut apply_effect(att_card_index, def_card_index, att_hb, def_hb, att_card_trigger))
+            events.append(&mut apply_effect(att_card_index, def_card_index, att_hb, def_hb))
         }
 
         att_hb.board.remove(att_card_index as usize);
@@ -144,32 +146,42 @@ fn simulate_attack<T: Rng>(att_card_index: u8, att_hb: &mut PlayerData, def_hb: 
 
         // Triggers Survived or Hit on att
         if att_card_trigger == Triggers::Survived || att_card_trigger == Triggers::Hit {
-            events.append(&mut apply_effect(att_card_index, def_card_index, att_hb, def_hb, att_card_trigger))
+            events.append(&mut apply_effect(att_card_index, def_card_index, att_hb, def_hb));
+
+            if att_card_trigger == Triggers::Survived && att_hb.board[att_card_index as usize].card_type.ability() == Abilities::Dexterity {
+                replay = true;
+            }
         }
         // Triggers Hit on def
         if def_card_trigger == Triggers::Hit {
-            events.append(&mut apply_effect(def_card_index, att_card_index, def_hb, att_hb, def_card_trigger));
+            events.append(&mut apply_effect(def_card_index, att_card_index, def_hb, att_hb));
         }
     }
 
-    return events;
+    return (events, replay);
 }
 
 pub(crate) fn simulate_combat<T: Rng>(mut hb1: PlayerData, mut hb2: PlayerData, rng: &mut T) -> Vec<CombatEvents> {
     let mut events = Vec::new();
 
     let mut to_play = rng.gen::<bool>();
-    let mut next_cards_to_play: [u8; 2] = [0, 0];
 
     // While each player has something to play
     while !hb1.board.is_empty() && !hb2.board.is_empty() {
         let (player_hb, oponent_hb) = if to_play { (&mut hb1, &mut hb2) } else { (&mut hb2, &mut hb1) };
 
-        events.extend(simulate_attack(next_cards_to_play[to_play as usize], player_hb, oponent_hb, rng));
+        let next_card_to_play = player_hb.board.iter().enumerate().map(|(i, card)| (card.played, i)).min().unwrap().1;
+        player_hb.board[next_card_to_play].played += 1;
 
-        let nb_cards = get_number_of_cards(if to_play { &hb1 } else { &hb2 });
-        let quotient = if nb_cards > 0 { nb_cards } else { 1 };
-        next_cards_to_play[to_play as usize] = (next_cards_to_play[to_play as usize] + 1) % quotient;
+        let (new_events, replay) = simulate_attack(next_card_to_play, player_hb, oponent_hb, rng);
+        events.extend(new_events);
+
+        if replay {
+            let (new_events, _) = simulate_attack(next_card_to_play, player_hb, oponent_hb, rng);
+            events.extend(new_events);
+        }
+
+
         to_play = !to_play;
     }
 
