@@ -350,7 +350,7 @@ fn init(
         .spawn_bundle(SpriteBundle {
             material: handles.refresh_button.clone(),
             transform: Transform {
-                translation: Vec3::new(1155., HEIGHT - 210., Z_BOB),
+                translation: Vec3::new(1155., HEIGHT / 2. + 140., Z_BOB),
                 ..Default::default()
             },
             ..Default::default()
@@ -362,7 +362,7 @@ fn init(
         .spawn_bundle(SpriteBundle {
             material: handles.freeze_button.clone(),
             transform: Transform {
-                translation: Vec3::new(1155., HEIGHT - 350., Z_BOB),
+                translation: Vec3::new(1155., HEIGHT / 2., Z_BOB),
                 ..Default::default()
             },
             ..Default::default()
@@ -374,7 +374,7 @@ fn init(
         .spawn_bundle(SpriteBundle {
             material: handles.upgrade_button.clone(),
             transform: Transform {
-                translation: Vec3::new(1155., HEIGHT - 490., Z_BOB),
+                translation: Vec3::new(1155., HEIGHT / 2. - 140., Z_BOB),
                 ..Default::default()
             },
             ..Default::default()
