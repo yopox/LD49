@@ -1084,7 +1084,7 @@ fn handle_buttons(
         let mut player_data = player_data.single_mut().unwrap();
 
         let transform = queries.q1().single().unwrap();
-        if overlap(cursor.xyz(), transform.translation, (100., 100.)) {
+        if overlap(cursor.xyz(), transform.translation, (50., 50.)) {
             button_text.single_mut().unwrap().sections[0].value = format!("Refresh cards for {} coins.", shop_values.refresh);
             if btn.just_pressed(MouseButton::Left) && player_data.coins >= shop_values.refresh {
                 player_data.coins -= shop_values.refresh;
@@ -1109,7 +1109,7 @@ fn handle_buttons(
         }
 
         let transform = queries.q2().single().unwrap();
-        if overlap(cursor.xyz(), transform.translation, (100., 100.)) {
+        if overlap(cursor.xyz(), transform.translation, (50., 50.)) {
             button_text.single_mut().unwrap().sections[0].value =
                 if frozen_shop.0.is_none() {
                     format!("Freeze cards for {} coins.", shop_values.freeze)
@@ -1131,7 +1131,7 @@ fn handle_buttons(
         }
 
         let transform = queries.q3().single().unwrap();
-        if overlap(cursor.xyz(), transform.translation, (100., 100.)) {
+        if overlap(cursor.xyz(), transform.translation, (50., 50.)) {
             let upgrade_cost: i16 = match player_data.shop_level {
                 1 => 4,
                 2 => 6,
