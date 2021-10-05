@@ -197,9 +197,7 @@ fn setup_fight(
                 stack.push(FightEvents::StatsChange(StatsChange { card_id, at, hp }));
             }
             CombatEvents::ApplyAbility { card_index, player_id, ability, card_id } => {
-                let player = if player_id == my_id { FightPlayers::MySelf } else { FightPlayers::MyFoe };
-                let slot = FightSlot { who: to_base_height(player), index: card_index };
-                stack.push(FightEvents::ApplyEffect(ApplyEffect(slot)));
+                stack.push(FightEvents::ApplyEffect(ApplyEffect(card_id)));
 
                 match ability {
                     Abilities::Gigantism => {
@@ -364,7 +362,7 @@ struct StatsChange {
     at: i32,
 }
 
-struct ApplyEffect(FightSlot);
+struct ApplyEffect(u32);
 
 struct GoldChange {
     who: FightPlayers,
@@ -578,12 +576,12 @@ fn apply_effect_producer(
     mut er: EventReader<ApplyEffect>,
     mut commands: Commands,
     time: Res<Time>,
-    query: Query<(Entity, &FightSlot)>,
+    query: Query<(Entity, &Card)>,
     handles: Res<TextureAssets>,
 ) {
-    for &ApplyEffect(s) in er.iter() {
-        for (e, &slot) in query.iter() {
-            if s == slot {
+    for &ApplyEffect(card_id) in er.iter() {
+        for (e, &card) in query.iter() {
+            if card_id == card.id {
                 commands
                     .entity(e)
                     .with_children(|parent| {
