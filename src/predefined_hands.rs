@@ -8,12 +8,14 @@ pub struct ChosenHand(pub HandsName);
 #[derive(Clone)]
 pub enum HandsName {
     Mush,
+    Spiders,
 }
 
 impl Distribution<HandsName> for Standard {
     fn sample<R: Rng + ?Sized>(&self, rng: &mut R) -> HandsName {
         match rng.gen_range(0..=1) {
             0 => HandsName::Mush,
+            1 => HandsName::Spiders,
             _ => HandsName::Mush,
         }
     }
@@ -22,7 +24,6 @@ impl Distribution<HandsName> for Standard {
 struct CardState(BaseCards, u16, u16);
 
 impl HandsName {
-
     fn hand_components(&self, turn: u16) -> Vec<CardState> {
         match self {
             HandsName::Mush => match turn {
@@ -88,14 +89,83 @@ impl HandsName {
                     CardState(BaseCards::MUSH_2, 4, 11),
                 ],
             }
+            HandsName::Spiders => match turn {
+                1 => vec![
+                    CardState(BaseCards::SPID_2, 2, 2),
+                ],
+                2 => vec![
+                    CardState(BaseCards::SPID_2, 2, 2),
+                    CardState(BaseCards::SPID_1, 2, 2),
+                ],
+                3 => vec![
+                    CardState(BaseCards::SPID_1, 2, 1),
+                    CardState(BaseCards::SPID_2, 2, 2),
+                ],
+                4 => vec![
+                    CardState(BaseCards::SPID_3, 3, 2),
+                    CardState(BaseCards::SPID_2, 2, 2),
+                    CardState(BaseCards::SPID_1, 2, 1),
+                ],
+                5 => vec![
+                    CardState(BaseCards::SPID_3, 3, 2),
+                    CardState(BaseCards::SPID_4, 3, 3),
+                    CardState(BaseCards::SPID_2, 2, 2),
+                    CardState(BaseCards::SPID_1, 2, 1),
+                ],
+                6 => vec![
+                    CardState(BaseCards::SPID_3, 3, 2),
+                    CardState(BaseCards::SPID_4, 3, 3),
+                    CardState(BaseCards::SPID_2, 2, 2),
+                    CardState(BaseCards::SPID_1, 2, 1),
+                ],
+                7 => vec![
+                    CardState(BaseCards::SPID_3, 3, 2),
+                    CardState(BaseCards::SPID_6, 5, 2),
+                    CardState(BaseCards::SPID_4, 3, 3),
+                    CardState(BaseCards::SPID_2, 2, 2),
+                    CardState(BaseCards::SPID_1, 2, 1),
+                ],
+                8 => vec![
+                    CardState(BaseCards::SPID_3, 3, 2),
+                    CardState(BaseCards::SPID_3, 3, 2),
+                    CardState(BaseCards::SPID_6, 5, 2),
+                    CardState(BaseCards::SPID_4, 3, 3),
+                    CardState(BaseCards::SPID_2, 2, 2),
+                    CardState(BaseCards::SPID_1, 2, 1),
+                ],
+                9 => vec![
+                    CardState(BaseCards::SPID_3, 3, 2),
+                    CardState(BaseCards::SPID_3, 3, 2),
+                    CardState(BaseCards::SPID_6, 5, 2),
+                    CardState(BaseCards::SPID_6, 5, 2),
+                    CardState(BaseCards::SPID_4, 3, 3),
+                    CardState(BaseCards::SPID_2, 2, 2),
+                    CardState(BaseCards::SPID_1, 2, 1),
+                ],
+                10 => vec![
+                    CardState(BaseCards::SPID_3, 3, 2),
+                    CardState(BaseCards::SPID_3, 3, 2),
+                    CardState(BaseCards::SPID_7, 6, 4),
+                    CardState(BaseCards::SPID_6, 5, 2),
+                    CardState(BaseCards::SPID_6, 5, 2),
+                    CardState(BaseCards::SPID_4, 3, 3),
+                ],
+                _ => vec![
+                    CardState(BaseCards::SPID_3, 3, 2),
+                    CardState(BaseCards::SPID_3, 3, 2),
+                    CardState(BaseCards::SPID_7, 6, 4),
+                    CardState(BaseCards::SPID_6, 5, 2),
+                    CardState(BaseCards::SPID_6, 5, 2),
+                    CardState(BaseCards::SPID_4, 3, 3),
+                    CardState(BaseCards::SPID_1, 2, 7),
+                ],
+            }
         }
     }
 
     pub fn hand(&self, global_data: &mut GlobalData) -> Vec<Card> {
         let turn = global_data.turn;
-        match self {
-            HandsName::Mush => self.hand_components(turn)
-        }.iter().map(|card_state| {
+        self.hand_components(turn).iter().map(|card_state| {
             let card = Card {
                 base_card: card_state.0,
                 id: global_data.next_card_id,
