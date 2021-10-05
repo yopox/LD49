@@ -1,7 +1,7 @@
 # Cards
 
 Cards have base health points (**HP**) and attack (**ATK**).
-They are split into five categories: four families and other cards.
+They are split into four families.
 
 Cards can have effects triggered as follows:
 
@@ -12,7 +12,6 @@ Cards can have effects triggered as follows:
 - **HIT**: When this card attacks or is attacked
 - **KILL**: When this card kills an enemy
 - **SOLD**: When this card is sold
-- (**PASSIVE**: Always apply)
 
 ## Mushrooms
 
