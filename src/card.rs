@@ -6,6 +6,8 @@ use bevy::math::Vec4Swizzles;
 use bevy::prelude::*;
 use bevy::text::Text2dSize;
 use derive_more::Display;
+use rand::Rng;
+use rand::rngs::StdRng;
 
 use crate::{AppState, HEIGHT, MainCamera, WIDTH};
 use crate::font::*;
@@ -397,6 +399,19 @@ impl BaseCards {
             BaseCards::ROB_6 => handles.rob_6.clone(),
             BaseCards::ROB_7 => handles.rob_7.clone(),
             BaseCards::ROB_8 => handles.rob_8.clone(),
+        }
+    }
+
+    pub fn random_mush(rng: &mut StdRng) -> BaseCards {
+        match rng.gen_range(0..8) {
+            0 => BaseCards::MUSH_1,
+            1 => BaseCards::MUSH_2,
+            2 => BaseCards::MUSH_3,
+            3 => BaseCards::MUSH_4,
+            4 => BaseCards::MUSH_5,
+            5 => BaseCards::MUSH_6,
+            6 => BaseCards::MUSH_7,
+            _ => BaseCards::MUSH_8,
         }
     }
 }

@@ -5,6 +5,7 @@ use bevy::math::{vec2, vec3, Vec4Swizzles};
 use bevy::prelude::*;
 use bevy_kira_audio::{Audio, AudioChannel, AudioPlugin};
 use rand::Rng;
+use rand::prelude::SliceRandom;
 
 use crate::{AppState, HEIGHT, MainCamera, MySelf, PlayerData, WIDTH};
 use crate::card::*;
@@ -61,6 +62,8 @@ struct SlotBorder;
 
 struct SlotHovered;
 
+struct ShopUi;
+
 struct RefreshButton;
 
 struct FreezeButton;
@@ -79,6 +82,8 @@ struct CoinLimit(u16);
 struct BeganShop(f64);
 
 struct PlayedTrigger(Entity);
+
+struct SoldTrigger(Card);
 
 const MIN_COINS: u16 = 3;
 
@@ -109,6 +114,7 @@ impl Plugin for ShopPlugin {
         app
             .add_event::<CoinsDiff>()
             .add_event::<PlayedTrigger>()
+            .add_event::<SoldTrigger>()
             .insert_resource(ShopFrozen(None))
             .insert_resource(CanRefresh(false))
             .add_system_set(
@@ -127,6 +133,7 @@ impl Plugin for ShopPlugin {
                     .with_system(display_ability_animation.system())
                     .with_system(handle_buttons.system())
                     .with_system(played_trigger.system())
+                    .with_system(sold_trigger.system())
             )
             .add_system_set(
                 SystemSet::on_exit(AppState::Shop)
@@ -139,7 +146,7 @@ impl Plugin for ShopPlugin {
                     .after("on_exit")
                     .with_system(cleanup_system::<ShopSlot>.system())
                     .with_system(cleanup_system::<SlotBorder>.system())
-                    .with_system(cleanup_system::<Bob>.system())
+                    .with_system(cleanup_system::<ShopUi>.system())
                     .with_system(cleanup_system::<ShopValues>.system())
                     .with_system(cleanup_system::<CoinLimit>.system())
                     .with_system(cleanup_system::<Level>.system())
@@ -271,7 +278,8 @@ fn init(
             },
             ..Default::default()
         })
-        .insert(Bob);
+        .insert(Bob)
+        .insert(ShopUi);
 
     // Slots
     commands.spawn().insert(bob_slot);
@@ -348,7 +356,7 @@ fn init(
             ..Default::default()
         })
         .insert(RefreshButton)
-        .insert(Bob);
+        .insert(ShopUi);
 
     commands
         .spawn_bundle(SpriteBundle {
@@ -360,7 +368,7 @@ fn init(
             ..Default::default()
         })
         .insert(FreezeButton)
-        .insert(Bob);
+        .insert(ShopUi);
 
     commands
         .spawn_bundle(SpriteBundle {
@@ -372,7 +380,7 @@ fn init(
             ..Default::default()
         })
         .insert(UpgradeButton)
-        .insert(Bob);
+        .insert(ShopUi);
 
     commands
         .spawn_bundle(Text2dBundle {
@@ -389,7 +397,7 @@ fn init(
             ..Default::default()
         })
         .insert(ButtonText)
-        .insert(Bob);
+        .insert(ShopUi);
 }
 
 fn draw_effect(material: Handle<ColorMaterial>, slot: ShopSlot) -> SpriteBundle {
@@ -495,6 +503,88 @@ fn played_trigger(
                 card.hp += other_robots;
                 card.atk += other_robots;
                 ev_stats.send(StatsChanged(trigger.0));
+            }
+            _ => {}
+        }
+    }
+}
+
+fn sold_trigger(
+    time: Res<Time>,
+    mut commands: Commands,
+    mut ev_sold: EventReader<SoldTrigger>,
+    mut ev_stats: EventWriter<StatsChanged>,
+    mut ev_new_card: EventWriter<NewCard>,
+    handles: Res<TextureAssets>,
+    mut global_data: ResMut<GlobalData>,
+    mut cards: Query<(Entity, &mut Card, &ShopSlot)>,
+    bob: Query<Entity, With<Bob>>,
+) {
+    for trigger in ev_sold.iter() {
+        commands
+            .entity(bob.single().unwrap())
+            .with_children(|parent| {
+                parent
+                    .spawn_bundle(SpriteBundle {
+                        material: handles.heart.clone(),
+                        transform: Transform {
+                            translation: vec3(-CARD_WIDTH / 2. / CARD_SCALE, CARD_HEIGHT / 2. / CARD_SCALE, Z_ABILITY),
+                            scale: vec3(1. / CARD_SCALE, 1. / CARD_SCALE, 1.),
+                            ..Default::default()
+                        },
+                        ..Default::default()
+                    })
+                    .insert(RemoveAfter(time.seconds_since_startup() + ABILITY_DISPLAY_TIME));
+            });
+
+        let ability = trigger.0.base_card.ability();
+
+        match ability {
+            Abilities::Sporocarp => {
+                let mut occupied_slots = HashSet::new();
+                for (_, _, other_slot) in cards.iter_mut() {
+                    if other_slot.row != ShopSlots::HAND { continue; }
+                    occupied_slots.insert(other_slot.id);
+                }
+                for i in 0..=4 {
+                    if !occupied_slots.contains(&i) {
+                        let random_mush = BaseCards::random_mush(&mut global_data.rng);
+                        let mush = add_card(Card::new(random_mush, global_data.next_card_id),
+                                                   ShopSlot { row: ShopSlots::HAND, id: i as u8 },
+                                                   &mut commands, &handles, &mut ev_new_card);
+                        commands
+                            .entity(mush)
+                            .insert(Draggable { size: vec2(CARD_WIDTH / 2., CARD_HEIGHT / 2.) });
+                        global_data.next_card_id += 1;
+                        break;
+                    }
+                }
+            }
+            Abilities::Altruism => {
+                let mut board_entities = vec![];
+                for (e, _, other_slot) in cards.iter_mut() {
+                    if other_slot.row != ShopSlots::BOARD { continue; }
+                    board_entities.push(e);
+                }
+                let mut hp_ups = vec![];
+                for i in 0..trigger.0.hp {
+                    hp_ups.push(board_entities.choose(&mut global_data.rng));
+                }
+                for (e, mut card, other_slot) in cards.iter_mut() {
+                    if other_slot.row != ShopSlots::BOARD { continue; }
+                    let mut stats_changed = false;
+
+                    for e2 in hp_ups.iter() {
+                        if let Some(e2) = e2 {
+                            if e == **e2 {
+                                stats_changed = true;
+                                card.hp += 1;
+                            }
+                        }
+                    }
+
+                    if stats_changed { ev_stats.send(StatsChanged(e)); }
+                }
             }
             _ => {}
         }
@@ -881,11 +971,13 @@ fn sell_card(
     shop_values: Res<ShopValues>,
     mut ev_transition: EventReader<TransitionOver>,
     mut ev_coins: EventWriter<CoinsDiff>,
-    mut cards: Query<(Entity, &ShopSlot), With<Card>>,
+    mut ev_sold: EventWriter<SoldTrigger>,
+    mut cards: Query<(Entity, &ShopSlot, &Card), With<Card>>,
 ) {
     for transition in ev_transition.iter() {
-        for (e, slot) in cards.iter_mut() {
+        for (e, slot, card) in cards.iter_mut() {
             if e == transition.0 && slot.row == ShopSlots::SELL {
+                ev_sold.send(SoldTrigger(card.clone()));
                 commands.entity(transition.0).despawn_recursive();
                 ev_coins.send(CoinsDiff(shop_values.sell, false));
             }

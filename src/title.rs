@@ -99,7 +99,7 @@ fn setup_data(
         }).insert(MyFoe);
 
     commands.insert_resource(GlobalData {
-        next_card_id: 1, // WARNING: the number of cards created before in this function
+        next_card_id: 0, // WARNING: the number of cards created before in this function
         ..Default::default()
     });
 }
