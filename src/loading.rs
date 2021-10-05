@@ -138,8 +138,20 @@ pub struct TextureAssets {
     #[asset(path = "ACTIONS BIS2.png")]
     pub exclamation: Handle<ColorMaterial>,
     #[asset(color_material)]
-    #[asset(path = "MONEY.png")]
-    pub money: Handle<ColorMaterial>,
+    #[asset(path = "_SABLIER1.png")]
+    pub hourglass_1: Handle<ColorMaterial>,
+    #[asset(color_material)]
+    #[asset(path = "_SABLIER2.png")]
+    pub hourglass_2: Handle<ColorMaterial>,
+    #[asset(color_material)]
+    #[asset(path = "_SABLIER3.png")]
+    pub hourglass_3: Handle<ColorMaterial>,
+    #[asset(color_material)]
+    #[asset(path = "_SABLIER4.png")]
+    pub hourglass_4: Handle<ColorMaterial>,
+    #[asset(color_material)]
+    #[asset(path = "_SABLIER5.png")]
+    pub hourglass_5: Handle<ColorMaterial>,
 }
 
 #[derive(AssetCollection)]

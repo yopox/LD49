@@ -72,6 +72,12 @@ struct UpgradeButton;
 
 struct ButtonText;
 
+struct Hourglass;
+
+struct ShopTimer;
+
+struct Popup;
+
 struct Sold;
 
 // (gained coins ; can overflow)
@@ -84,6 +90,8 @@ struct BeganShop(f64);
 struct PlayedTrigger(Entity);
 
 struct SoldTrigger(Card);
+
+struct StartFight;
 
 const MIN_COINS: u16 = 3;
 
@@ -115,6 +123,7 @@ impl Plugin for ShopPlugin {
             .add_event::<CoinsDiff>()
             .add_event::<PlayedTrigger>()
             .add_event::<SoldTrigger>()
+            .add_event::<StartFight>()
             .insert_resource(ShopFrozen(None))
             .insert_resource(CanRefresh(false))
             .add_system_set(
@@ -134,6 +143,7 @@ impl Plugin for ShopPlugin {
                     .with_system(handle_buttons.system())
                     .with_system(played_trigger.system())
                     .with_system(sold_trigger.system())
+                    .with_system(start_fight.system())
             )
             .add_system_set(
                 SystemSet::on_exit(AppState::Shop)
@@ -163,7 +173,7 @@ struct ShopFrozen(Option<Vec<(u8, Card)>>);
 
 struct CanRefresh(bool);
 
-const SHOP_RULE_POPUP_DURATION: f64 = 8.;
+const SHOP_RULE_POPUP_DURATION: f64 = 6.;
 
 
 fn init(
@@ -196,7 +206,6 @@ fn init(
     player_data.coins = coins;
     player_data.extra_coins = 0;
     commands.insert_resource(CoinLimit(coins));
-    commands.insert_resource(shop_values);
 
     let t0 = time.seconds_since_startup();
 
@@ -214,7 +223,8 @@ fn init(
         },
         ..Default::default()
     }).insert(RemoveAfter(t0 + SHOP_RULE_POPUP_DURATION));
-    commands.spawn_bundle(SpriteBundle {
+    commands
+        .spawn_bundle(SpriteBundle {
         material: colors.black.clone(),
         sprite: Sprite::new(Vec2::new(WIDTH / 1.5, HEIGHT / 2.)),
         visible: Visible {
@@ -226,7 +236,9 @@ fn init(
             ..Default::default()
         },
         ..Default::default()
-    }).insert(RemoveAfter(t0 + SHOP_RULE_POPUP_DURATION));
+    })
+        .insert(RemoveAfter(t0 + SHOP_RULE_POPUP_DURATION))
+        .insert(Popup);
 
     commands.spawn().insert(AbilitiesStack {
         next_tick_after: t0 + SHOP_RULE_POPUP_DURATION + 0.5,
@@ -350,7 +362,7 @@ fn init(
         .spawn_bundle(SpriteBundle {
             material: handles.refresh_button.clone(),
             transform: Transform {
-                translation: Vec3::new(1155., HEIGHT / 2. + 140., Z_BOB),
+                translation: Vec3::new(1155., HEIGHT / 2. + 90., Z_BOB),
                 ..Default::default()
             },
             ..Default::default()
@@ -362,7 +374,7 @@ fn init(
         .spawn_bundle(SpriteBundle {
             material: handles.freeze_button.clone(),
             transform: Transform {
-                translation: Vec3::new(1155., HEIGHT / 2., Z_BOB),
+                translation: Vec3::new(1155., HEIGHT / 2. - 50., Z_BOB),
                 ..Default::default()
             },
             ..Default::default()
@@ -374,7 +386,7 @@ fn init(
         .spawn_bundle(SpriteBundle {
             material: handles.upgrade_button.clone(),
             transform: Transform {
-                translation: Vec3::new(1155., HEIGHT / 2. - 140., Z_BOB),
+                translation: Vec3::new(1155., HEIGHT / 2. - 190., Z_BOB),
                 ..Default::default()
             },
             ..Default::default()
@@ -391,13 +403,43 @@ fn init(
                                          ..Default::default()
                                      }),
             transform: Transform {
-                translation: Vec3::new(WIDTH / 2., HEIGHT - 50., 1.),
+                translation: Vec3::new(WIDTH / 2., HEIGHT - 60., 1.),
                 ..Default::default()
             },
             ..Default::default()
         })
         .insert(ButtonText)
         .insert(ShopUi);
+
+    commands
+        .spawn_bundle(SpriteBundle {
+            material: handles.hourglass_1.clone(),
+            transform: Transform {
+                translation: Vec3::new(1155., HEIGHT - 120., Z_BOB),
+                ..Default::default()
+            },
+            ..Default::default()
+        })
+        .insert(Hourglass)
+        .insert(ShopUi);
+
+    commands
+        .spawn_bundle(Text2dBundle {
+        text: Text::with_section(format!("{}s", shop_values.timer),
+                                 text_styles.love_bug_small.clone(),
+                                 TextAlignment {
+                                     horizontal: HorizontalAlign::Center,
+                                     ..Default::default()
+                                 }),
+        transform: Transform {
+            translation: Vec3::new(1155., HEIGHT - 49., 1.),
+            ..Default::default()
+        },
+        ..Default::default()
+    })
+        .insert(ShopTimer);
+
+    commands.insert_resource(shop_values);
 }
 
 fn draw_effect(material: Handle<ColorMaterial>, slot: ShopSlot) -> SpriteBundle {
@@ -611,6 +653,7 @@ fn display_ability_animation(
     mut ev_new_card: EventWriter<NewCard>,
     mut ev_stats: EventWriter<StatsChanged>,
     mut ev_gold_event: EventWriter<CoinsDiff>,
+    timer: Query<Entity, With<ShopTimer>>,
     audio: Res<Audio>,
     music: Res<AudioAssets>,
 ) {
@@ -753,7 +796,12 @@ fn display_ability_animation(
                 }
             } else {
                 commands.spawn().insert(StartDraggableAt(t + 0.5));
-                commands.entity(entity_stack).despawn_recursive();
+                commands
+                    .entity(timer.single().unwrap())
+                    .insert(BeganShop(time.seconds_since_startup()));
+                commands
+                    .entity(entity_stack)
+                    .despawn_recursive();
             }
         }
     }
@@ -777,6 +825,7 @@ fn update_ui(
     time: Res<Time>,
     shop_values: Res<ShopValues>,
     coin_limit: Res<CoinLimit>,
+    mut ev_fight: EventWriter<StartFight>,
     mut state: ResMut<State<AppState>>,
     mut texts: QuerySet<(
         Query<&mut Text, With<Coins>>,
@@ -787,6 +836,8 @@ fn update_ui(
         Query<&PlayerData, With<MySelf>>,
         Query<&mut PlayerData, With<MyFoe>>,
     )>,
+    mut hourglass: Query<&mut Handle<ColorMaterial>, With<Hourglass>>,
+    handles: Res<TextureAssets>,
     mut global_data: ResMut<GlobalData>,
 ) {
     let data = players.q0().single().expect("No data for the player");
@@ -802,15 +853,38 @@ fn update_ui(
     if let Ok((mut time_text, BeganShop(t0))) = texts.q2_mut().single_mut()
     {
         let remaining_time = shop_values.timer - time.seconds_since_startup() + *t0;
-        time_text.sections[0].value = format!("REMAINING TIME {}s", remaining_time as u8);
+        time_text.sections[0].value = format!("{}s", remaining_time as u8);
+
+        if let Ok((mut texture)) = hourglass.single_mut() {
+            *texture = match (remaining_time / shop_values.timer * 5.) as u16 {
+                0 => handles.hourglass_5.clone(),
+                1 => handles.hourglass_4.clone(),
+                2 => handles.hourglass_3.clone(),
+                3 => handles.hourglass_2.clone(),
+                _ => handles.hourglass_1.clone(),
+            };
+        }
 
         if remaining_time < 0. {
-            let mut foe = players.q1_mut().single_mut().unwrap();
-            foe.board = foe.ia.hand(&mut global_data);
-            state.set(AppState::Fight);
+            ev_fight.send(StartFight);
         }
     }
 }
+
+fn start_fight(
+    mut ev_fight: EventReader<StartFight>,
+    mut state: ResMut<State<AppState>>,
+    mut foe: Query<&mut PlayerData, With<MyFoe>>,
+    mut global_data: ResMut<GlobalData>,
+) {
+    for _ in ev_fight.iter() {
+        let mut foe = foe.single_mut().unwrap();
+        foe.board = foe.ia.hand(&mut global_data);
+        state.set(AppState::Fight);
+        return;
+    }
+}
+
 
 fn highlight_slot(
     mut commands: Commands,
@@ -1068,13 +1142,6 @@ fn start_draggable(
                     });
             }
 
-            commands.spawn_bundle(
-                text_bundle_at_corner(
-                    Corners::TopRight,
-                    vec!["REMAINING TIME 60s".to_string()],
-                    &text_styles.love_bug_small,
-                )).insert(BeganShop(time.seconds_since_startup()));
-
             can_refresh.0 = true;
         }
     }
@@ -1085,8 +1152,9 @@ fn handle_buttons(
     btn: Res<Input<MouseButton>>,
     windows: Res<Windows>,
     shop_values: Res<ShopValues>,
+    main_camera: Query<&Transform, With<MainCamera>>,
     queries: QuerySet<(
-        Query<&Transform, With<MainCamera>>,
+        Query<&Transform, With<Hourglass>>,
         Query<&Transform, With<RefreshButton>>,
         Query<&Transform, With<FreezeButton>>,
         Query<&Transform, With<UpgradeButton>>,
@@ -1098,11 +1166,12 @@ fn handle_buttons(
     mut global_data: ResMut<GlobalData>,
     handles: Res<TextureAssets>,
     mut ev_new_card: EventWriter<NewCard>,
+    mut ev_fight: EventWriter<StartFight>,
     audio: Res<Audio>,
     music: Res<AudioAssets>,
 ) {
     let window = windows.get_primary().unwrap();
-    if let Some(cursor) = cursor_pos(window, queries.q0().single().unwrap()) {
+    if let Some(cursor) = cursor_pos(window, main_camera.single().unwrap()) {
         let mut player_data = player_data.single_mut().unwrap();
 
         let transform = queries.q1().single().unwrap();
@@ -1174,6 +1243,15 @@ fn handle_buttons(
                 }
                 return;
             }
+        }
+
+        let transform = queries.q0().single().unwrap();
+        if overlap(cursor.xyz(), transform.translation, (60., 70.)) {
+            button_text.single_mut().unwrap().sections[0].value = "Click to end your turn.".to_string();
+            if btn.just_pressed(MouseButton::Left) {
+                ev_fight.send(StartFight);
+            }
+            return;
         }
     }
     button_text.single_mut().unwrap().sections[0].value = "".to_string();
