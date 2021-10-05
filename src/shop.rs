@@ -189,7 +189,7 @@ fn init(
     audio.play_looped_with_intro(songs.intro.clone(), songs.shop.clone());
 
     let mut shop_values = ShopValues::default();
-    let rule = ShopRules::random(&mut shop_values, global_data.turn);
+    let rule = ShopRules::random(&mut shop_values, global_data.turn, &mut global_data.rng);
 
     let coins = max(MIN_COINS, min(global_data.turn + 2, shop_values.gold_limit))
         + player_data.extra_coins;
