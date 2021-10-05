@@ -526,24 +526,27 @@ fn sold_trigger(
     music: Res<AudioAssets>,
 ) {
     for trigger in ev_sold.iter() {
-        audio.play_in_channel(music.ability_triggered.clone(), &AudioChannel::new("SFX2".to_owned()));
-        commands
-            .entity(bob.single().unwrap())
-            .with_children(|parent| {
-                parent
-                    .spawn_bundle(SpriteBundle {
-                        material: handles.heart.clone(),
-                        transform: Transform {
-                            translation: vec3(-CARD_WIDTH / 2. / CARD_SCALE, CARD_HEIGHT / 2. / CARD_SCALE, Z_ABILITY),
-                            scale: vec3(1. / CARD_SCALE, 1. / CARD_SCALE, 1.),
-                            ..Default::default()
-                        },
-                        ..Default::default()
-                    })
-                    .insert(RemoveAfter(time.seconds_since_startup() + ABILITY_DISPLAY_TIME));
-            });
-
         let ability = trigger.0.base_card.ability();
+        let triggered = trigger.0.base_card.trigger() == Triggers::Sold;
+
+        if triggered {
+            audio.play_in_channel(music.ability_triggered.clone(), &AudioChannel::new("SFX2".to_owned()));
+            commands
+                .entity(bob.single().unwrap())
+                .with_children(|parent| {
+                    parent
+                        .spawn_bundle(SpriteBundle {
+                            material: handles.heart.clone(),
+                            transform: Transform {
+                                translation: vec3(-CARD_WIDTH / 2. / CARD_SCALE, CARD_HEIGHT / 2. / CARD_SCALE, Z_ABILITY),
+                                scale: vec3(1. / CARD_SCALE, 1. / CARD_SCALE, 1.),
+                                ..Default::default()
+                            },
+                            ..Default::default()
+                        })
+                        .insert(RemoveAfter(time.seconds_since_startup() + ABILITY_DISPLAY_TIME));
+                });
+        }
 
         match ability {
             Abilities::Sporocarp => {
