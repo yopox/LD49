@@ -8,6 +8,7 @@ use crate::card::{Card, CardPlugin, BaseCards};
 use crate::fight::{FightPlugin, MyFoe};
 use crate::game_over::GameOverPlugin;
 use crate::loading::{AudioAssets, ColorAssets, TextureAssets};
+use crate::predefined_hands::HandsName;
 use crate::shop::ShopPlugin;
 use crate::title::TitlePlugin;
 use crate::ui::{AnimationPlugin, DragAndDropPlugin};
@@ -24,6 +25,7 @@ mod loading;
 mod shop_rules;
 mod shop_manager;
 mod game_over;
+mod predefined_hands;
 
 pub const WIDTH: f32 = 1280.;
 pub const HEIGHT: f32 = 720.;
@@ -48,7 +50,7 @@ fn main() {
     app
         .add_state(AppState::Loading)
         .insert_resource(WindowDescriptor {
-            title: "LD49".to_string(),
+            title: "Unbalanced Brawl".to_string(),
             width: WIDTH,
             height: HEIGHT,
             vsync: true,
@@ -101,6 +103,7 @@ pub struct PlayerData {
     extra_coins: u16, // For gold gained in fight
     hp: u16,
     shop_level: u16,
+    ia: HandsName,
     // hero,
 }
 
@@ -108,13 +111,14 @@ impl Default for PlayerData {
     fn default() -> Self {
         PlayerData {
             id: 0,
-            name: "J1".to_string(),
+            name: "YOU".to_string(),
             hand: vec![],
             board: vec![],
             coins: 3,
             extra_coins: 0,
-            hp: 1,
+            hp: 25,
             shop_level: 1,
+            ia: HandsName::Mush,
         }
     }
 }

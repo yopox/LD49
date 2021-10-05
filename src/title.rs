@@ -86,28 +86,20 @@ fn setup_data(
         PlayerData {
             id: 0,
             name: "YOU".to_string(),
-            hand: vec![
-                Card::new(BaseCards::SPID_8, 0),
-            ],
-            board: vec![
-                Card::new(BaseCards::ROB_8, 1),
-                Card::new(BaseCards::MUSH_8, 2),
-            ],
+            hand: vec![],
+            board: vec![],
             ..Default::default()
         }).insert(MySelf);
     commands.spawn().insert(
         PlayerData {
             id: 1,
             name: "IA".to_string(),
-            board: vec![
-                Card::new(BaseCards::SPID_8, 3),
-                Card::new(BaseCards::MERCH_8, 4),
-            ],
+            board: vec![],
             ..Default::default()
         }).insert(MyFoe);
 
     commands.insert_resource(GlobalData {
-        next_card_id: 5, // WARNING: the number of cards created before in this function
+        next_card_id: 1, // WARNING: the number of cards created before in this function
         ..Default::default()
     });
 }

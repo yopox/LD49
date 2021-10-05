@@ -65,16 +65,3 @@ Rank | Name | ATK | HP | Effects
 3 | Humanoid | 4 | 8 | –
 4 | Repair drones | 5 | 12 | (Upload) **TURN**: This loses 2 HP and gives +2 HP to allied robots
 4 | SkyBot | 3 | 3 | (Download) **TURN**: Steals +1 HP and +1 ATK from each allied robot
-
-## Other cards
-
-Rank | Name | ATH | HP | Effects
------|------|-----|----|--------
-1 | Name | 1 | 1 | –
-1 | Name | 1 | 1 | –
-2 | Name | 1 | 1 | –
-2 | Name | 1 | 1 | –
-3 | Name | 1 | 1 | –
-3 | Name | 1 | 1 | –
-4 | Name | 1 | 1 | –
-4 | Name | 1 | 1 | –

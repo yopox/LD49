@@ -7,6 +7,7 @@ use rand::Rng;
 
 use crate::{AppState, HEIGHT, MainCamera, MySelf, PlayerData, WIDTH};
 use crate::card::*;
+use crate::fight::MyFoe;
 use crate::font::TextStyles;
 use crate::GlobalData;
 use crate::loading::{AudioAssets, ColorAssets};
@@ -95,7 +96,7 @@ impl Default for ShopValues {
             refresh: 1,
             freeze: 0,
             gold_limit: 10,
-            timer: 15.,
+            timer: 40.,
         }
     }
 }
@@ -150,7 +151,7 @@ struct ShopFrozen(Option<Vec<(u8, Card)>>);
 
 struct CanRefresh(bool);
 
-const SHOP_RULE_POPUP_DURATION: f64 = 1.;
+const SHOP_RULE_POPUP_DURATION: f64 = 8.;
 
 
 fn init(
@@ -583,29 +584,35 @@ fn update_ui(
     shop_values: Res<ShopValues>,
     coin_limit: Res<CoinLimit>,
     mut state: ResMut<State<AppState>>,
-    mut queries: QuerySet<(
-        Query<&PlayerData, With<MySelf>>,
+    mut texts: QuerySet<(
         Query<&mut Text, With<Coins>>,
         Query<&mut Text, With<Level>>,
         Query<(&mut Text, &BeganShop)>,
     )>,
+    mut players: QuerySet<(
+        Query<&PlayerData, With<MySelf>>,
+        Query<&mut PlayerData, With<MyFoe>>,
+    )>,
+    mut global_data: ResMut<GlobalData>,
 ) {
-    let data = queries.q0().single().expect("No data for the player");
+    let data = players.q0().single().expect("No data for the player");
     let coins = data.coins;
     let level = data.shop_level;
 
-    let mut coins_text = queries.q1_mut().single_mut().expect("Coins text not found.");
+    let mut coins_text = texts.q0_mut().single_mut().expect("Coins text not found.");
     coins_text.sections[0].value = format!("COINS: {}/{}", coins, coin_limit.0);
 
-    let mut level_text = queries.q2_mut().single_mut().expect("Level text not found.");
+    let mut level_text = texts.q1_mut().single_mut().expect("Level text not found.");
     level_text.sections[1].value = format!("SHOP LEVEL {}", level);
 
-    if let Ok((mut time_text, BeganShop(t0))) = queries.q3_mut().single_mut()
+    if let Ok((mut time_text, BeganShop(t0))) = texts.q2_mut().single_mut()
     {
         let remaining_time = shop_values.timer - time.seconds_since_startup() + *t0;
         time_text.sections[0].value = format!("REMAINING TIME {}s", remaining_time as u8);
 
         if remaining_time < 0. {
+            let mut foe = players.q1_mut().single_mut().unwrap();
+            foe.board = foe.ia.hand(&mut global_data);
             state.set(AppState::Fight);
         }
     }
@@ -886,7 +893,7 @@ fn handle_buttons(
 
         let transform = queries.q1().single().unwrap();
         if overlap(cursor.xyz(), transform.translation, (100., 100.)) {
-            button_text.single_mut().unwrap().sections[0].value = format!("Refresh cards for {} coins.", shop_values.buy);
+            button_text.single_mut().unwrap().sections[0].value = format!("Refresh cards for {} coins.", shop_values.refresh);
             if btn.just_pressed(MouseButton::Left) && player_data.coins >= shop_values.refresh {
                 player_data.coins -= shop_values.refresh;
                 *frozen_shop = ShopFrozen(None);

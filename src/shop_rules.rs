@@ -49,8 +49,8 @@ impl ShopRules {
             ShopRules::RefreshInf => values.refresh = 99,
             ShopRules::FreezePlus => values.freeze = 1,
             ShopRules::FreezeInf => values.refresh = 99,
-            ShopRules::TimerPlus => values.timer = 90.,
-            ShopRules::TimerMinus => values.timer = 30.,
+            ShopRules::TimerPlus => values.timer = 55.,
+            ShopRules::TimerMinus => values.timer = 25.,
             ShopRules::None => {}
         }
     }
@@ -66,8 +66,8 @@ impl ShopRules {
             ShopRules::RefreshInf => "\"All the cards are sold!\nI spared a few for you!\"\n\n(Can't refresh cards this turn.)",
             ShopRules::FreezePlus => "\"My storage is nearly full!\nIf you want me to keep some cards\nfor next time this will not be free...\"\n(Freezing cards costs 1 coin this turn.)",
             ShopRules::FreezeInf => "\"My storage is full!\nI can't keep any cards today, sorry.\"\n\n(Can't freeze cards this turn.)",
-            ShopRules::TimerPlus => "\"You are early today!\nTake your time :)\"\n\n(The timer lasts 90s this turn.)",
-            ShopRules::TimerMinus => "\"I will close soon...\nPlease hurry.\"\n\n(The timer lasts 30s this turn.)",
+            ShopRules::TimerPlus => "\"You are early today!\nTake your time :)\"\n\n(The timer lasts 55s this turn.)",
+            ShopRules::TimerMinus => "\"I will close soon...\nPlease hurry.\"\n\n(The timer lasts 25s this turn.)",
             ShopRules::None => "\"Enjoy your time in the shop!\"\n\n(No effect this turn.)",
         }
     }
