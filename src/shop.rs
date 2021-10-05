@@ -1097,9 +1097,12 @@ fn handle_buttons(
                 for (i, &base_card) in ShopManager::shop_inventory(player_data.shop_level, &mut global_data.rng).iter().enumerate() {
                     let id = global_data.next_card_id;
                     global_data.next_card_id += 1;
-                    add_card(Card::new(base_card, id),
+                    let card_id = add_card(Card::new(base_card, id),
                              ShopSlot { row: ShopSlots::SHOP, id: i as u8 },
                              &mut commands, &handles, &mut ev_new_card);
+                    commands
+                        .entity(card_id)
+                        .insert(Draggable { size: vec2(CARD_WIDTH / 2., CARD_HEIGHT / 2.) });
                 }
             }
             return;
