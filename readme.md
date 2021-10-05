@@ -7,14 +7,16 @@
 
 # Not Implemented
 
-## Effects
+## Abilities
+
+The following unticked abilities are not implemented:
 
 ### Mushrooms
 
 - [x] Slimy TURN
-- [ ] Sweet scent PLAYED
+- [x] Sweet scent PLAYED
 - [x] Toxic spores DEATH
-- [ ] Sporocarp SOLD
+- [x] Sporocarp SOLD
 - [x] Roots TURN
 - [x] Gigantism KILL
 
@@ -24,12 +26,12 @@
 - [x] Exploding armour DEATH
 - [x] Pillage KILL
 - [x] Gold mine TURN
-- [ ] Altruism SOLD
+- [x] Altruism SOLD
 - [x] Dexterity SURVIVED
 
 ### Spiders
 
-- [ ] Cooperation PLAYED
+- [x] Cooperation PLAYED
 - [x] Trap HIT
 - [ ] Multiplication DEATH
 - [x] Poisonous HIT
@@ -38,8 +40,8 @@
 
 ### Robots
 
-- [ ] Replication PLAYED
-- [ ] Scanner PLAYED
+- [x] Replication PLAYED
+- [x] Scanner PLAYED
 - [x] Upgrade TURN
 - [ ] Glitch HIT
 - [x] Upload TURN
