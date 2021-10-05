@@ -12,10 +12,11 @@ use crate::util::{Z_BACKGROUND, cleanup_system, Slot, card_transform};
 #[derive(PartialEq, Copy, Clone)]
 struct GameOverSlot {
     id: u8,
+    total: u8,
 }
 
 impl Slot for GameOverSlot {
-    fn x(&self) -> f32 { return 256. + 128. * self.id as f32; }
+    fn x(&self) -> f32 { return 256. + 128. * self.id as f32 + 64. * (7 - self.total) as f32; }
     fn y(&self) -> f32 { return HEIGHT / 2.; }
 }
 
@@ -101,8 +102,11 @@ fn init(
     }).insert(Over);
 
     let player_data = player_data.single_mut().unwrap();
+    let mut nb_cards = 0;
+    for (_) in player_data.board.iter() { nb_cards += 1; }
+    
     for (i, card) in player_data.board.iter().enumerate() {
-        let slot = GameOverSlot { id: i as u8 };
+        let slot = GameOverSlot { id: i as u8, total: nb_cards };
         let e = commands
             .spawn_bundle(SpriteBundle {
                 material: card.base_card.handle(&handles),
