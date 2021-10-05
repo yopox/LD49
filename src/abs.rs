@@ -77,14 +77,14 @@ fn apply_effect<T: Rng>(card_index: u8, opponent_card_index: u8, player_hb: &mut
         }
         Abilities::Multiplication => {}, // TODO: Not yet implemented
         Abilities::Poisonous => {
-            player_hb.board[opponent_card_index as usize].hp = 0;
+            opponent_hb.board[opponent_card_index as usize].hp = 0;
         }
         Abilities::Glitch => {
             if rng.gen() {
-                player_hb.board[opponent_card_index as usize].atk = relu(opponent_card.atk as i32 - 2);
+                opponent_hb.board[opponent_card_index as usize].atk = relu(opponent_card.atk as i32 - 2);
                 events.push(CombatEvents::StatsChange { player_id: opponent_id, card_id: opponent_card.id, hp: 0, at: -2 });
             } else {
-                player_hb.board[opponent_card_index as usize].hp = relu(opponent_card.hp as i32 - 2);
+                opponent_hb.board[opponent_card_index as usize].hp = relu(opponent_card.hp as i32 - 2);
                 events.push(CombatEvents::StatsChange { player_id: opponent_id, at: 0, hp: -2, card_id: opponent_card.id });
             }
         }
@@ -133,8 +133,6 @@ fn simulate_attack<T: Rng>(att_card_index: usize, att_hb: &mut PlayerData, def_h
     {
         events.append(&mut apply_effect(def_card_index, att_card_index, def_hb, att_hb, rng));
     }
-
-    let replay =
 
     for &card in &att_hb.board {
         if card.hp <= 0 {

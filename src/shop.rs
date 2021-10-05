@@ -675,7 +675,7 @@ fn display_ability_animation(
                             let index = slot.id;
                             for (e, &s, mut card) in card_query.iter_mut() {
                                 if s.row == ShopSlots::BOARD
-                                    && (s.id == index + 1 || s.id + 1 == index) {
+                                    && (s.id == index + 1 || s.id + 1 == index || s.id == index) {
                                     card.hp += 1;
                                     card.atk += 1;
                                     ev_stats.send(StatsChanged(e));
