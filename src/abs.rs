@@ -114,9 +114,9 @@ fn simulate_attack<T: Rng>(att_card_index: usize, att_hb: &mut PlayerData, def_h
 
     events.push(CombatEvents::Attack { att_card_index, att_id: att_hb.id, def_card_index });
 
-    def_hb.board[def_card_index as usize].hp = max(def_card.hp as i32 - att_card.atk as i32, 0) as u16;
+    def_hb.board[def_card_index as usize].hp = relu(def_card.hp as i32 - att_card.atk as i32);
     events.push(CombatEvents::StatsChange { player_id: def_hb.id, card_id: def_card.id, at: 0, hp: -(att_card.atk as i32) });
-    att_hb.board[att_card_index as usize].hp = max(att_card.hp as i32 - def_card.atk as i32, 0) as u16;
+    att_hb.board[att_card_index as usize].hp = relu(att_card.hp as i32 - def_card.atk as i32);
     events.push(CombatEvents::StatsChange { player_id: att_hb.id, card_id: att_card.id, at: 0, hp: -(def_card.atk as i32) });
 
     // Triggers
@@ -197,10 +197,6 @@ pub(crate) fn simulate_combat<T: Rng>(mut hb1: PlayerData, mut hb2: PlayerData, 
         att_id: winner.id,
         change_def_hp,
     });
-
-    for e in &events {
-        println!("{}", e);
-    }
 
     return events;
 }
