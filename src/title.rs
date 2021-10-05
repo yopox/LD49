@@ -44,6 +44,8 @@ fn display_title(
     songs: Res<AudioAssets>,
 ) {
     audio.stop();
+    audio.set_volume_in_channel(0.8, &AudioChannel::new("SFX".to_owned()));
+    audio.set_volume(0.8);
     audio.play_looped(songs.title.clone());
 
     commands.spawn_bundle(SpriteBundle {

@@ -491,10 +491,15 @@ fn stat_change_producer(
     mut commands: Commands,
     mut ev_stats: EventWriter<StatsChanged>,
     time: Res<Time>,
+    audio: Res<Audio>,
+    music: Res<AudioAssets>,
 ) {
     for event in er_stats_change.iter() {
         for (e, mut card) in query.iter_mut() {
             if card.id == event.card_id {
+                if event.hp < 0 {
+                    audio.play_in_channel(music.attack.clone(), &AudioChannel::new("SFX".to_owned()));
+                }
                 card.hp = relu(card.hp as i32 + event.hp);
                 card.atk = relu(card.atk as i32 + event.at);
                 commands.spawn().insert(WaitUntil(time.seconds_since_startup() + 0.5));
@@ -509,6 +514,8 @@ fn remove_card_producer(
     mut er_remove_card_event: EventReader<RemoveCard>,
     mut commands: Commands,
     mut query: Query<(Entity, &mut FightSlot, &Card)>,
+    audio: Res<Audio>,
+    music: Res<AudioAssets>,
 ) {
     let t0 = time.seconds_since_startup();
     let removed_ids: Vec<u32> = er_remove_card_event.iter().map(|RemoveCard(t)| *t).collect();
@@ -523,6 +530,7 @@ fn remove_card_producer(
     let mut used = vec![];
     for (e, mut slot, &card) in query.iter_mut() {
         if removed_ids.contains(&card.id) {
+            audio.play_in_channel(music.death.clone(), &AudioChannel::new("SFX".to_owned()));
             commands.entity(e)
                 .despawn_recursive();
             if slot.who == FightSlotHeight::FightingMyFoe {
@@ -578,10 +586,13 @@ fn apply_effect_producer(
     time: Res<Time>,
     query: Query<(Entity, &Card)>,
     handles: Res<TextureAssets>,
+    audio: Res<Audio>,
+    music: Res<AudioAssets>,
 ) {
     for &ApplyEffect(card_id) in er.iter() {
         for (e, &card) in query.iter() {
             if card_id == card.id {
+                audio.play_in_channel(music.ability_triggered.clone(), &AudioChannel::new("SFX".to_owned()));
                 commands
                     .entity(e)
                     .with_children(|parent| {

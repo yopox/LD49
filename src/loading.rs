@@ -141,6 +141,7 @@ pub struct TextureAssets {
 
 #[derive(AssetCollection)]
 pub struct AudioAssets {
+    // BGM
     #[asset(path = "ost/1- title.ogg")]
     pub title: Handle<AudioSource>,
     #[asset(path = "ost/2- shop.ogg")]
@@ -149,6 +150,26 @@ pub struct AudioAssets {
     pub fight: Handle<AudioSource>,
     #[asset(path = "ost/SFX/TRANSI MUSIQUE.ogg")]
     pub intro: Handle<AudioSource>,
+
+    // SFX
+    #[asset(path = "ost/SFX/1 Acheter une carte.ogg")]
+    pub buy_card: Handle<AudioSource>,
+    #[asset(path = "ost/SFX/2 Vendre une carte.ogg")]
+    pub sell_card: Handle<AudioSource>,
+    #[asset(path = "ost/SFX/3 Refresh taverne.ogg")]
+    pub refresh: Handle<AudioSource>,
+    #[asset(path = "ost/SFX/4 Placer carte sur le board.ogg")]
+    pub place_card: Handle<AudioSource>,
+    #[asset(path = "ost/SFX/5 Freeze.ogg")]
+    pub freeze: Handle<AudioSource>,
+    #[asset(path = "ost/SFX/6 Attaque.ogg")]
+    pub attack: Handle<AudioSource>,
+    #[asset(path = "ost/SFX/7 Mort.ogg")]
+    pub death: Handle<AudioSource>,
+    #[asset(path = "ost/SFX/8.1 Effet déclenché.ogg")]
+    pub ability_triggered: Handle<AudioSource>,
+    #[asset(path = "ost/SFX/9 Level up shop.ogg")]
+    pub level_up: Handle<AudioSource>,
 }
 
 pub struct ColorAssets {

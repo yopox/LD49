@@ -434,8 +434,11 @@ fn played_trigger(
         Query<(&mut Card, &ShopSlot)>,
         Query<(Entity, &mut Card, &ShopSlot)>
     )>,
+    audio: Res<Audio>,
+    music: Res<AudioAssets>,
 ) {
     for trigger in ev_played.iter() {
+        audio.play_in_channel(music.ability_triggered.clone(), &AudioChannel::new("SFX2".to_owned()));
         commands
             .entity(trigger.0)
             .with_children(|parent| {
@@ -519,8 +522,11 @@ fn sold_trigger(
     mut global_data: ResMut<GlobalData>,
     mut cards: Query<(Entity, &mut Card, &ShopSlot)>,
     bob: Query<Entity, With<Bob>>,
+    audio: Res<Audio>,
+    music: Res<AudioAssets>,
 ) {
     for trigger in ev_sold.iter() {
+        audio.play_in_channel(music.ability_triggered.clone(), &AudioChannel::new("SFX2".to_owned()));
         commands
             .entity(bob.single().unwrap())
             .with_children(|parent| {
@@ -602,6 +608,8 @@ fn display_ability_animation(
     mut ev_new_card: EventWriter<NewCard>,
     mut ev_stats: EventWriter<StatsChanged>,
     mut ev_gold_event: EventWriter<CoinsDiff>,
+    audio: Res<Audio>,
+    music: Res<AudioAssets>,
 ) {
     if let Ok((entity_stack, mut ab_stack)) = stack_query.single_mut() {
         let t = time.seconds_since_startup();
@@ -625,6 +633,7 @@ fn display_ability_animation(
                         .insert(RemoveAfter(end + 0.1));
 
                     ab_stack.next_tick_after = end;
+                    audio.play_in_channel(music.ability_triggered.clone(), &AudioChannel::new("SFX2".to_owned()));
 
                     match ability {
                         Abilities::Spawn => {
@@ -869,6 +878,8 @@ fn drop_card(
     )>,
     player_data: Query<(&PlayerData), With<MySelf>>,
     card: Query<&Card>,
+    audio: Res<Audio>,
+    music: Res<AudioAssets>,
 ) {
     for dropped in ev_dropped.iter() {
         // Get hovered slot and remove SlotHovered component
@@ -933,6 +944,9 @@ fn drop_card(
                                 commands.entity(e).insert(Sold);
                             } else if origin_slot.row == ShopSlots::SHOP {
                                 ev_coins.send(CoinsDiff(shop_values.buy, false));
+                                audio.play_in_channel(music.buy_card.clone(), &AudioChannel::new("SFX".to_owned()));
+                            } else {
+                                audio.play_in_channel(music.place_card.clone(), &AudioChannel::new("SFX".to_owned()));
                             }
                             let card = card.get(e).unwrap();
                             if card.base_card.trigger() == Triggers::Played && origin_slot.row != ShopSlots::BOARD && destination_slot.row == ShopSlots::BOARD {
@@ -973,10 +987,13 @@ fn sell_card(
     mut ev_coins: EventWriter<CoinsDiff>,
     mut ev_sold: EventWriter<SoldTrigger>,
     mut cards: Query<(Entity, &ShopSlot, &Card), With<Card>>,
+    audio: Res<Audio>,
+    music: Res<AudioAssets>,
 ) {
     for transition in ev_transition.iter() {
         for (e, slot, card) in cards.iter_mut() {
             if e == transition.0 && slot.row == ShopSlots::SELL {
+                audio.play_in_channel(music.sell_card.clone(), &AudioChannel::new("SFX".to_owned()));
                 ev_sold.send(SoldTrigger(card.clone()));
                 commands.entity(transition.0).despawn_recursive();
                 ev_coins.send(CoinsDiff(shop_values.sell, false));
@@ -1078,6 +1095,8 @@ fn handle_buttons(
     mut global_data: ResMut<GlobalData>,
     handles: Res<TextureAssets>,
     mut ev_new_card: EventWriter<NewCard>,
+    audio: Res<Audio>,
+    music: Res<AudioAssets>,
 ) {
     let window = windows.get_primary().unwrap();
     if let Some(cursor) = cursor_pos(window, queries.q0().single().unwrap()) {
@@ -1087,6 +1106,7 @@ fn handle_buttons(
         if overlap(cursor.xyz(), transform.translation, (50., 50.)) {
             button_text.single_mut().unwrap().sections[0].value = format!("Refresh cards for {} coins.", shop_values.refresh);
             if btn.just_pressed(MouseButton::Left) && player_data.coins >= shop_values.refresh {
+                audio.play_in_channel(music.refresh.clone(), &AudioChannel::new("SFX".to_owned()));
                 player_data.coins -= shop_values.refresh;
                 *frozen_shop = ShopFrozen(None);
                 for (e, &card, &slot) in card_query.iter() {
@@ -1117,6 +1137,7 @@ fn handle_buttons(
                     "Shop already frozen.".to_string()
                 };
             if btn.just_pressed(MouseButton::Left) && player_data.coins >= shop_values.freeze && frozen_shop.0.is_none() {
+                audio.play_in_channel(music.freeze.clone(), &AudioChannel::new("SFX".to_owned()));
                 player_data.coins -= shop_values.freeze;
                 frozen_shop.0 = Some(
                     card_query.iter()
@@ -1144,6 +1165,7 @@ fn handle_buttons(
             } else {
                 button_text.single_mut().unwrap().sections[0].value = format!("Upgrade the shop for {} coins.", upgrade_cost);
                 if btn.just_pressed(MouseButton::Left) && player_data.coins >= upgrade_cost as u16 {
+                    audio.play_in_channel(music.level_up.clone(), &AudioChannel::new("SFX".to_owned()));
                     player_data.coins -= upgrade_cost as u16;
                     player_data.shop_level += 1;
                 }
