@@ -1,3 +1,5 @@
+use rand::distributions::{Distribution, Standard};
+use rand::Rng;
 use crate::card::{BaseCards, Card};
 use crate::GlobalData;
 
@@ -6,6 +8,15 @@ pub struct ChosenHand(pub HandsName);
 #[derive(Clone)]
 pub enum HandsName {
     Mush,
+}
+
+impl Distribution<HandsName> for Standard {
+    fn sample<R: Rng + ?Sized>(&self, rng: &mut R) -> HandsName {
+        match rng.gen_range(0..=1) {
+            0 => HandsName::Mush,
+            _ => HandsName::Mush,
+        }
+    }
 }
 
 struct CardState(BaseCards, u16, u16);

@@ -1,7 +1,8 @@
 use bevy::prelude::*;
 use bevy_kira_audio::{Audio, AudioChannel, AudioPlugin};
 use rand::prelude::StdRng;
-use rand::SeedableRng;
+use rand::{Rng, SeedableRng};
+use rand::distributions::Standard;
 
 use crate::{AppState, GlobalData, HEIGHT, MySelf, PlayerData, WIDTH};
 use crate::card::{BaseCards, Card};
@@ -84,6 +85,10 @@ fn click_to_shop(
 fn setup_data(
     mut commands: Commands,
 ) {
+    let mut global_data = GlobalData {
+        next_card_id: 0, // WARNING: the number of cards created before in this function
+        ..Default::default()
+    };
     commands.spawn().insert(
         PlayerData {
             id: 0,
@@ -95,13 +100,11 @@ fn setup_data(
     commands.spawn().insert(
         PlayerData {
             id: 1,
-            name: "IA".to_string(),
+            name: "AI".to_string(),
             board: vec![],
+            ia: global_data.rng.sample(Standard),
             ..Default::default()
         }).insert(MyFoe);
 
-    commands.insert_resource(GlobalData {
-        next_card_id: 0, // WARNING: the number of cards created before in this function
-        ..Default::default()
-    });
+    commands.insert_resource(global_data);
 }
