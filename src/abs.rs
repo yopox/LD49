@@ -62,7 +62,7 @@ fn apply_effect<T: Rng>(card_index: u8, opponent_card_index: u8, player_hb: &mut
             player_hb.board[card_index as usize].atk += 1;
             events.push(CombatEvents::StatsChange { player_id, card_id: player_card.id, hp: 0, at: 1 })
         }
-        Abilities::Sadism => todo!("Not yet implemented"),
+        Abilities::Sadism => {}, // TODO Not Yet Implemented
         Abilities::ExplodingArmour => {
             for mut card in &mut opponent_hb.board {
                 events.push(CombatEvents::StatsChange { player_id: opponent_id, hp: -1, at: 0, card_id: card.id });
@@ -75,7 +75,7 @@ fn apply_effect<T: Rng>(card_index: u8, opponent_card_index: u8, player_hb: &mut
             opponent_hb.board[opponent_card_index as usize].atk = change_atk as u16;
             events.push(CombatEvents::StatsChange { player_id: opponent_id, hp: 0, at: -change_atk, card_id: opponent_card.id })
         }
-        Abilities::Multiplication => todo!("Not yet implemented"),
+        Abilities::Multiplication => {}, // TODO: Not yet implemented
         Abilities::Poisonous => {
             player_hb.board[opponent_card_index as usize].hp = 0;
         }

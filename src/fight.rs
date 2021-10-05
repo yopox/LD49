@@ -8,12 +8,12 @@ use rand::Rng;
 
 use crate::{AppState, GlobalData, HEIGHT, MySelf, PlayerData, WIDTH};
 use crate::abs::{CombatEvents, simulate_combat};
-use crate::card::{Abilities, Card, CARD_HEIGHT, NewCard, StatsChanged};
+use crate::card::{Abilities, Card, CARD_HEIGHT, CARD_SCALE, CARD_WIDTH, NewCard, StatsChanged};
 use crate::font::TextStyles;
 use crate::game_over::Won;
 use crate::loading::{AudioAssets, TextureAssets};
 use crate::ui::{easing, StateBackground, TranslationAnimation};
-use crate::util::{card_transform, cleanup_system, Coins, Corners, Level, PlayerHP, relu, text_bundle_at_corner, Z_BACKGROUND, Z_CARD, Z_CARD_DRAG};
+use crate::util::{card_transform, cleanup_system, Coins, Corners, Level, PlayerHP, relu, text_bundle_at_corner, Z_ABILITY, Z_BACKGROUND, Z_CARD, Z_CARD_DRAG};
 
 pub struct FightPlugin;
 
@@ -416,27 +416,21 @@ fn event_dispatcher(
         if let Some(e) = stack.stack.pop() {
             match e {
                 FightEvents::Translation(t) => {
-                    println!("Dispatching a Translation");
                     ew_translation.send(t);
                 }
                 FightEvents::RemoveCard(r) => {
-                    println!("Dispatching a RemoveCard");
                     ew_remove_card.send(r);
                 }
                 FightEvents::StatsChange(s) => {
-                    println!("Dispatching a StatsChange");
                     ew_stats_change.send(s);
                 }
                 FightEvents::ApplyEffect(a) => {
-                    println!("Dispatching a ApplyEffect");
                     ew_apply_effect.send(a);
                 }
                 FightEvents::PlayersAttack(pa) => {
-                    println!("Dispatching a PlayersAttack");
                     ew_players_attack.send(pa);
                 }
                 FightEvents::GoldChange(g) => {
-                    println!("Dispatching a GoldChange");
                     ew_gold_change.send(g);
                 }
             }
@@ -444,7 +438,10 @@ fn event_dispatcher(
             let dead = players.q0().single().unwrap().hp <= 0;
             let mut last_alive = true;
             for data in players.q1().iter() {
-                if data.hp > 0 { last_alive = false; break; }
+                if data.hp > 0 {
+                    last_alive = false;
+                    break;
+                }
             }
             if dead || last_alive {
                 commands.insert_resource(Won(last_alive));
@@ -543,17 +540,17 @@ fn remove_card_producer(
     }
 
     while my_to_push > 0 {
-        let used_indexes : Vec<u8> = used.iter().filter(|slot| slot.who == FightSlotHeight::MySelf).map(|slot| slot.index).collect();
+        let used_indexes: Vec<u8> = used.iter().filter(|slot| slot.who == FightSlotHeight::MySelf).map(|slot| slot.index).collect();
         let mut first_empty = 0u8;
-        while used_indexes.contains(&first_empty) {first_empty += 1}
-        removed_slots.push(FightSlot { who: FightSlotHeight::MySelf , index: first_empty });
+        while used_indexes.contains(&first_empty) { first_empty += 1 }
+        removed_slots.push(FightSlot { who: FightSlotHeight::MySelf, index: first_empty });
         my_to_push -= 1;
     }
     while foe_to_push > 0 {
-        let used_indexes : Vec<u8> = used.iter().filter(|slot| slot.who == FightSlotHeight::MyFoe).map(|slot| slot.index).collect();
+        let used_indexes: Vec<u8> = used.iter().filter(|slot| slot.who == FightSlotHeight::MyFoe).map(|slot| slot.index).collect();
         let mut first_empty = 0u8;
-        while used_indexes.contains(&first_empty) {first_empty += 1}
-        removed_slots.push(FightSlot { who: FightSlotHeight::MyFoe , index: first_empty });
+        while used_indexes.contains(&first_empty) { first_empty += 1 }
+        removed_slots.push(FightSlot { who: FightSlotHeight::MyFoe, index: first_empty });
         foe_to_push -= 1;
     }
 
@@ -581,9 +578,29 @@ fn apply_effect_producer(
     mut er: EventReader<ApplyEffect>,
     mut commands: Commands,
     time: Res<Time>,
+    query: Query<(Entity, &FightSlot)>,
+    handles: Res<TextureAssets>,
 ) {
-    if er.iter().count() != 0 {
-        commands.spawn().insert(WaitUntil(time.seconds_since_startup() + 0.5));
+    for &ApplyEffect(s) in er.iter() {
+        for (e, &slot) in query.iter() {
+            if s == slot {
+                commands
+                    .entity(e)
+                    .with_children(|parent| {
+                        parent
+                            .spawn_bundle(SpriteBundle {
+                                material: handles.exclamation.clone(),
+                                transform: Transform {
+                                    translation: vec3(-CARD_WIDTH / 2. / CARD_SCALE, CARD_HEIGHT / 2. / CARD_SCALE, Z_ABILITY),
+                                    scale: vec3(1. / CARD_SCALE, 1. / CARD_SCALE, 1.),
+                                    ..Default::default()
+                                },
+                                ..Default::default()
+                            })
+                            .insert(WaitUntil(time.seconds_since_startup() + 1.));
+                    });
+            }
+        }
     }
 }
 
