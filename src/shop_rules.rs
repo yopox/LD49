@@ -64,7 +64,7 @@ impl ShopRules {
             ShopRules::RefreshPlus => "\"I don't have enough time\nto show you all my cards today...\nIt will be more expensive.\"\n\n(Refreshing cards costs 2 coins this turn.)",
             ShopRules::RefreshMinus => "\"So much cards have arrived!\nWill you take a look at them all?\"\n\n(Refreshing cards is free this turn.)",
             ShopRules::RefreshInf => "\"All the cards are sold!\nI spared a few for you!\"\n\n(Can't refresh cards this turn.)",
-            ShopRules::FreezePlus => "\"My storage is nearly full!\nIf you want me to keep some cards\nfor next time this will not be free...\"\n(Freezing cards costs 1 coin this turn.)",
+            ShopRules::FreezePlus => "\"My storage is nearly full!\nIf you want me to keep some cards\nfor next time this will not be free...\"\n\n(Freezing cards costs 1 coin this turn.)",
             ShopRules::FreezeInf => "\"My storage is full!\nI can't keep any cards today, sorry.\"\n\n(Can't freeze cards this turn.)",
             ShopRules::TimerPlus => "\"You are early today!\nTake your time :)\"\n\n(The timer lasts 55s this turn.)",
             ShopRules::TimerMinus => "\"I will close soon...\nPlease hurry.\"\n\n(The timer lasts 25s this turn.)",
