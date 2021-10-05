@@ -1,4 +1,5 @@
 use std::cmp::{max, min};
+use std::collections::HashSet;
 
 use bevy::math::{vec2, vec3, Vec4Swizzles};
 use bevy::prelude::*;
@@ -77,6 +78,8 @@ struct CoinLimit(u16);
 
 struct BeganShop(f64);
 
+struct PlayedTrigger(Entity);
+
 const MIN_COINS: u16 = 3;
 
 pub struct ShopValues {
@@ -105,6 +108,7 @@ impl Plugin for ShopPlugin {
     fn build(&self, app: &mut AppBuilder) {
         app
             .add_event::<CoinsDiff>()
+            .add_event::<PlayedTrigger>()
             .insert_resource(ShopFrozen(None))
             .insert_resource(CanRefresh(false))
             .add_system_set(
@@ -122,6 +126,7 @@ impl Plugin for ShopPlugin {
                     .with_system(start_draggable.system())
                     .with_system(display_ability_animation.system())
                     .with_system(handle_buttons.system())
+                    .with_system(played_trigger.system())
             )
             .add_system_set(
                 SystemSet::on_exit(AppState::Shop)
@@ -409,6 +414,93 @@ struct AbilitiesStack {
 
 const ABILITY_DISPLAY_TIME: f64 = 1.5;
 
+fn played_trigger(
+    time: Res<Time>,
+    mut commands: Commands,
+    mut ev_played: EventReader<PlayedTrigger>,
+    mut ev_stats: EventWriter<StatsChanged>,
+    mut ev_new_card: EventWriter<NewCard>,
+    handles: Res<TextureAssets>,
+    mut global_data: ResMut<GlobalData>,
+    mut cards: QuerySet<(
+        Query<(&mut Card, &ShopSlot)>,
+        Query<(Entity, &mut Card, &ShopSlot)>
+    )>,
+) {
+    for trigger in ev_played.iter() {
+        commands
+            .entity(trigger.0)
+            .with_children(|parent| {
+                parent
+                    .spawn_bundle(SpriteBundle {
+                        material: handles.heart.clone(),
+                        transform: Transform {
+                            translation: vec3(-CARD_WIDTH / 2. / CARD_SCALE, CARD_HEIGHT / 2. / CARD_SCALE, Z_ABILITY),
+                            scale: vec3(1. / CARD_SCALE, 1. / CARD_SCALE, 1.),
+                            ..Default::default()
+                        },
+                        ..Default::default()
+                    })
+                    .insert(RemoveAfter(time.seconds_since_startup() + ABILITY_DISPLAY_TIME));
+            });
+
+        let (mut card, slot) = cards.q0_mut().get_mut(trigger.0).unwrap();
+        let ability = card.base_card.ability();
+
+        match ability {
+            Abilities::SweetScent => {
+                for (e, mut card, other_slot) in cards.q1_mut().iter_mut() {
+                    if other_slot.row != ShopSlots::BOARD || e == trigger.0 || card.base_card.family() != Families::Mushrooms { continue; }
+                    card.atk += 1;
+                    card.hp += 1;
+                    ev_stats.send(StatsChanged(e));
+                }
+            }
+            Abilities::Cooperation => {
+                let mut other_spiders = 0;
+                for (e, mut card, other_slot) in cards.q1_mut().iter_mut() {
+                    if other_slot.row != ShopSlots::BOARD || e == trigger.0 || card.base_card.family() != Families::Spiders { continue; }
+                    other_spiders += 1;
+                }
+                let (mut card, _) = cards.q0_mut().get_mut(trigger.0).unwrap();
+                card.hp += other_spiders;
+                ev_stats.send(StatsChanged(trigger.0));
+            }
+            Abilities::Replication => {
+                let mut occupied_slots = HashSet::new();
+                for (_, _, other_slot) in cards.q1_mut().iter_mut() {
+                    if other_slot.row != ShopSlots::BOARD { continue; }
+                    occupied_slots.insert(other_slot.id);
+                }
+                for i in 0..=6 {
+                    if !occupied_slots.contains(&i) {
+                        let nanobot = add_card(Card::new(BaseCards::ROB_1, global_data.next_card_id),
+                                 ShopSlot { row: ShopSlots::BOARD, id: i as u8 },
+                                 &mut commands, &handles, &mut ev_new_card);
+                        commands
+                            .entity(nanobot)
+                            .insert(Draggable { size: vec2(CARD_WIDTH / 2., CARD_HEIGHT / 2.) });
+                        global_data.next_card_id += 1;
+                        break;
+                    }
+                }
+            }
+            Abilities::Scanner => {
+                let mut other_robots = 0;
+                for (e, mut card, other_slot) in cards.q1_mut().iter_mut() {
+                    if other_slot.row != ShopSlots::BOARD || e == trigger.0 || card.base_card.family() != Families::Robots { continue; }
+                    other_robots += 1;
+                }
+                let (mut card, _) = cards.q0_mut().get_mut(trigger.0).unwrap();
+                card.hp += other_robots;
+                card.atk += other_robots;
+                ev_stats.send(StatsChanged(trigger.0));
+            }
+            _ => {}
+        }
+    }
+}
+
 fn display_ability_animation(
     time: Res<Time>,
     mut stack_query: Query<(Entity, &mut AbilitiesStack)>,
@@ -678,17 +770,19 @@ fn drop_card(
     mut commands: Commands,
     mut ev_dropped: EventReader<Dropped>,
     mut ev_coins: EventWriter<CoinsDiff>,
+    mut ev_played: EventWriter<PlayedTrigger>,
     shop_values: Res<ShopValues>,
     time: Res<Time>,
-    mut queries: QuerySet<(
+    mut cards: QuerySet<(
         Query<(Entity, &ShopSlot), With<SlotHovered>>,
         Query<(Entity, &Transform, &mut ShopSlot), With<Card>>,
-        Query<(&PlayerData), With<MySelf>>,
     )>,
+    player_data: Query<(&PlayerData), With<MySelf>>,
+    card: Query<&Card>,
 ) {
     for dropped in ev_dropped.iter() {
         // Get hovered slot and remove SlotHovered component
-        let hovered_slot: Option<ShopSlot> = match queries.q0_mut().single_mut() {
+        let hovered_slot: Option<ShopSlot> = match cards.q0_mut().single_mut() {
             Ok((e, slot)) => {
                 commands.entity(e).remove::<SlotHovered>();
                 Some(slot.clone())
@@ -699,7 +793,7 @@ fn drop_card(
         match hovered_slot {
             None => {
                 // Find the dragged card and send it back to its slot
-                for (e, transform, mut slot) in queries.q1_mut().iter_mut() {
+                for (e, transform, mut slot) in cards.q1_mut().iter_mut() {
                     if dropped.0 == e {
                         // println!("No slots hovered. Fallback to {:?} {}", &slot.row, &slot.id);
                         commands
@@ -713,7 +807,7 @@ fn drop_card(
                 // Check if there is a card on the destination
                 let mut origin_slot: Option<ShopSlot> = None;
                 let mut existing_entity: Option<Entity> = None;
-                for (e, _, slot) in queries.q1_mut().iter_mut() {
+                for (e, _, slot) in cards.q1_mut().iter_mut() {
                     if dropped.0 == e {
                         origin_slot = Some(slot.clone());
                     } else if destination_slot == *slot {
@@ -724,7 +818,7 @@ fn drop_card(
                 let origin_slot = origin_slot.unwrap();
                 let origin_pos = (origin_slot.x(), origin_slot.y());
 
-                let (data) = queries.q2().single().expect("Can't find player data.");
+                let data = player_data.single().expect("Can't find player data.");
 
                 let legal_move: bool = match origin_slot.row {
                     ShopSlots::HAND => destination_slot.row == ShopSlots::HAND ||
@@ -737,7 +831,7 @@ fn drop_card(
                 // println!["Move: {:?} {} -> {:?} {} : {}", &origin_slot.row, &origin_slot.id, &destination_slot.row, &destination_slot.id, legal_move];
 
                 // Move the dragged card to its new slot (or old slot if the move isn't legal)
-                for (e, transform, mut slot) in queries.q1_mut().iter_mut() {
+                for (e, transform, mut slot) in cards.q1_mut().iter_mut() {
                     if dropped.0 == e {
                         if legal_move {
                             slot.row = destination_slot.row;
@@ -745,8 +839,14 @@ fn drop_card(
                             commands
                                 .entity(e)
                                 .insert(animate_fast(&time, (transform.translation.x, transform.translation.y), (destination_slot.x(), destination_slot.y())));
-                            if destination_slot.row == ShopSlots::SELL { commands.entity(e).insert(Sold); } else if origin_slot.row == ShopSlots::SHOP {
+                            if destination_slot.row == ShopSlots::SELL {
+                                commands.entity(e).insert(Sold);
+                            } else if origin_slot.row == ShopSlots::SHOP {
                                 ev_coins.send(CoinsDiff(shop_values.buy, false));
+                            }
+                            let card = card.get(e).unwrap();
+                            if card.base_card.trigger() == Triggers::Played && origin_slot.row != ShopSlots::BOARD && destination_slot.row == ShopSlots::BOARD {
+                                ev_played.send(PlayedTrigger(e));
                             }
                         } else {
                             commands
@@ -760,7 +860,7 @@ fn drop_card(
                 // If we sell, ignore existing_entity
                 if legal_move && destination_slot.row != ShopSlots::SHOP {
                     if let Some(existing_entity) = existing_entity {
-                        for (e, transform, mut slot) in queries.q1_mut().iter_mut() {
+                        for (e, transform, mut slot) in cards.q1_mut().iter_mut() {
                             if existing_entity == e {
                                 slot.row = origin_slot.row;
                                 slot.id = origin_slot.id;
