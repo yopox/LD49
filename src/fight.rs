@@ -1,9 +1,10 @@
-use std::cmp::min;
+use std::cmp::{max, min};
 
 use bevy::math::vec3;
 use bevy::prelude::*;
 use bevy_kira_audio::{Audio, AudioChannel, AudioPlugin};
 use derive_more::Display;
+use rand::Rng;
 
 use crate::{AppState, GlobalData, HEIGHT, MySelf, PlayerData, WIDTH};
 use crate::abs::{CombatEvents, simulate_combat};
@@ -12,7 +13,7 @@ use crate::font::TextStyles;
 use crate::game_over::Won;
 use crate::loading::{AudioAssets, TextureAssets};
 use crate::ui::{easing, StateBackground, TranslationAnimation};
-use crate::util::{card_transform, cleanup_system, Coins, Corners, Level, PlayerHP, text_bundle_at_corner, Z_BACKGROUND, Z_CARD, Z_CARD_DRAG};
+use crate::util::{card_transform, cleanup_system, Coins, Corners, Level, PlayerHP, relu, text_bundle_at_corner, Z_BACKGROUND, Z_CARD, Z_CARD_DRAG};
 
 pub struct FightPlugin;
 
@@ -190,11 +191,9 @@ fn setup_fight(
                 stack.push(FightEvents::Translation(Translation { from: att_post, to: att_base }));
             }
             CombatEvents::Death { player_id, card_id } => {
-                let player = if player_id == my_id { FightPlayers::MySelf } else { FightPlayers::MyFoe };
                 stack.push(FightEvents::RemoveCard(RemoveCard(card_id)));
             }
             CombatEvents::StatsChange { player_id, card_id, hp, at } => {
-                let player = if player_id == my_id { FightPlayers::MySelf } else { FightPlayers::MyFoe };
                 stack.push(FightEvents::StatsChange(StatsChange { card_id, at, hp }));
             }
             CombatEvents::ApplyAbility { card_index, player_id, ability, card_id } => {
@@ -211,6 +210,28 @@ fn setup_fight(
                                 }
                             }
                         }
+                    }
+                    Abilities::Glitch => {
+                        for mut card in myself_cloned.board.iter_mut() {
+                            if card.id == card_id {
+                                if global_data.rng.gen() {
+                                    card.atk = max(card.atk as i32 - 2, 0) as u16;
+                                } else {
+                                    card.hp = max(card.hp as i32 - 2, 0) as u16;
+                                }
+                            }
+                        }
+                        for mut card in my_foe_cloned.board.iter_mut() {
+                            if card.id == card_id {
+                                if global_data.rng.gen() {
+                                    card.atk = max(card.atk as i32 - 2, 0) as u16;
+                                } else {
+                                    card.hp = max(card.hp as i32 - 2, 0) as u16;
+                                }
+                            }
+                        }
+                        myself_cloned.board.retain(|card| card.hp > 0);
+                        my_foe_cloned.board.retain(|card| card.hp > 0);
                     }
                     _ => {}
                 }
@@ -395,21 +416,27 @@ fn event_dispatcher(
         if let Some(e) = stack.stack.pop() {
             match e {
                 FightEvents::Translation(t) => {
+                    println!("Dispatching a Translation");
                     ew_translation.send(t);
                 }
                 FightEvents::RemoveCard(r) => {
+                    println!("Dispatching a RemoveCard");
                     ew_remove_card.send(r);
                 }
                 FightEvents::StatsChange(s) => {
+                    println!("Dispatching a StatsChange");
                     ew_stats_change.send(s);
                 }
                 FightEvents::ApplyEffect(a) => {
+                    println!("Dispatching a ApplyEffect");
                     ew_apply_effect.send(a);
                 }
                 FightEvents::PlayersAttack(pa) => {
+                    println!("Dispatching a PlayersAttack");
                     ew_players_attack.send(pa);
                 }
                 FightEvents::GoldChange(g) => {
+                    println!("Dispatching a GoldChange");
                     ew_gold_change.send(g);
                 }
             }
@@ -473,8 +500,8 @@ fn stat_change_producer(
     for event in er_stats_change.iter() {
         for (e, mut card) in query.iter_mut() {
             if card.id == event.card_id {
-                card.hp = (card.hp as i32 + event.hp) as u16;
-                card.atk = (card.atk as i32 + event.at) as u16;
+                card.hp = relu(card.hp as i32 + event.hp);
+                card.atk = relu(card.atk as i32 + event.at);
                 commands.spawn().insert(WaitUntil(time.seconds_since_startup() + 0.5));
                 ev_stats.send(StatsChanged(e));
             }

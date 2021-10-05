@@ -1,3 +1,4 @@
+use std::cmp::max;
 use bevy::ecs::component::Component;
 use bevy::ecs::system::EntityCommands;
 use bevy::prelude::*;
@@ -107,4 +108,8 @@ pub fn text_bundle_at_corner(corner: Corners, values: Vec<String>, style: &TextS
         transform: Default::default(),
         ..Default::default()
     }
+}
+
+pub fn relu(x: i32) -> u16 {
+    max(x, 0) as u16
 }
