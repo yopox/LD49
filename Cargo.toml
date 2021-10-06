@@ -3,16 +3,37 @@ name = "LD49"
 version = "0.1.0"
 edition = "2018"
 authors = ["yopox yopoxdev@gmail.com"]
+description = "An autochess made for LD49."
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+[features]
+default = [
+  "bevy/bevy_gltf",
+  "bevy/bevy_winit",
+  "bevy/render",
+  "bevy/png",
+]
+
+native = [
+  "bevy/bevy_wgpu",
+]
+
+web = [
+  "bevy_webgl2"
+]
 
 [dependencies]
-bevy = "0.5.0"
+bevy = {version="0.5.0", default-features=false}
+bevy_webgl2 = {version="0.5.0", optional=true}
 rand = "0.8.4"
 derive_more = "0.99.16"
 ezing = "0.2.1"
 bevy_asset_loader = "0.6.0"
 bevy_kira_audio = "0.6.0"
+
+[package.metadata.bundle]
+name = "Unbalanced Brawl"
+resources = ["assets"]
+identifier = "fr.haya.unbalanced_brawl"
 
 [package.metadata.deb]
 section = "Games"

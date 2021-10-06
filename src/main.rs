@@ -4,6 +4,9 @@ use bevy_kira_audio::{AudioChannel, Audio, AudioPlugin, AudioSource};
 use rand::{Rng, SeedableRng};
 use rand::rngs::StdRng;
 
+#[cfg(target_arch = "wasm32")]
+use bevy_webgl2;
+
 use crate::card::{Card, CardPlugin, BaseCards};
 use crate::fight::{FightPlugin, MyFoe};
 use crate::game_over::GameOverPlugin;
@@ -43,10 +46,17 @@ struct MainCamera;
 
 fn main() {
     let mut app = App::build();
+
+    app.add_plugins(DefaultPlugins);
+    
+    #[cfg(target_arch = "wasm32")]
+    app.add_plugin(bevy_webgl2::WebGL2Plugin);
+
     AssetLoader::new(AppState::Loading, AppState::Title)
         .with_collection::<TextureAssets>()
         .with_collection::<AudioAssets>()
         .build(&mut app);
+
     app
         .add_state(AppState::Loading)
         .insert_resource(WindowDescriptor {
@@ -56,7 +66,6 @@ fn main() {
             vsync: true,
             ..Default::default()
         })
-        .add_plugins(DefaultPlugins)
         .add_plugin(AudioPlugin)
         .add_plugin(ShopPlugin)
         .add_plugin(CardPlugin)
