@@ -12,9 +12,9 @@ pub fn load_fonts(
     mut commands: Commands,
     asset_server: Res<AssetServer>,
 ) {
-    let bird_seed: Handle<Font> = asset_server.load("ChevyRay - Bird Seed.ttf");
-    let love_bug: Handle<Font> = asset_server.load("ChevyRay - Love Bug.ttf");
-    let skullboy: Handle<Font> = asset_server.load("ChevyRay - Skullboy.ttf");
+    let bird_seed: Handle<Font> = asset_server.load("b.ttf");
+    let love_bug: Handle<Font> = asset_server.load("l.ttf");
+    let skullboy: Handle<Font> = asset_server.load("s.ttf");
     commands.insert_resource(TextStyles {
         stats: TextStyle {
             font: skullboy.clone(),

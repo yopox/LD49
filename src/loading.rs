@@ -157,33 +157,33 @@ pub struct TextureAssets {
 #[derive(AssetCollection)]
 pub struct AudioAssets {
     // BGM
-    #[asset(path = "ost/1- title.ogg")]
+    #[asset(path = "ost/1-title.ogg")]
     pub title: Handle<AudioSource>,
-    #[asset(path = "ost/2- shop.ogg")]
+    #[asset(path = "ost/2-shop.ogg")]
     pub shop: Handle<AudioSource>,
-    #[asset(path = "ost/3- combat.ogg")]
+    #[asset(path = "ost/3-combat.ogg")]
     pub fight: Handle<AudioSource>,
-    #[asset(path = "ost/SFX/TRANSI MUSIQUE.ogg")]
+    #[asset(path = "ost/SFX/transition.ogg")]
     pub intro: Handle<AudioSource>,
 
     // SFX
-    #[asset(path = "ost/SFX/1 Acheter une carte.ogg")]
+    #[asset(path = "ost/SFX/buy.ogg")]
     pub buy_card: Handle<AudioSource>,
-    #[asset(path = "ost/SFX/2 Vendre une carte.ogg")]
+    #[asset(path = "ost/SFX/sell.ogg")]
     pub sell_card: Handle<AudioSource>,
-    #[asset(path = "ost/SFX/3 Refresh taverne.ogg")]
+    #[asset(path = "ost/SFX/refresh.ogg")]
     pub refresh: Handle<AudioSource>,
-    #[asset(path = "ost/SFX/4 Placer carte sur le board.ogg")]
+    #[asset(path = "ost/SFX/place_card.ogg")]
     pub place_card: Handle<AudioSource>,
-    #[asset(path = "ost/SFX/5 Freeze.ogg")]
+    #[asset(path = "ost/SFX/freeze.ogg")]
     pub freeze: Handle<AudioSource>,
-    #[asset(path = "ost/SFX/6 Attaque.ogg")]
+    #[asset(path = "ost/SFX/attack.ogg")]
     pub attack: Handle<AudioSource>,
-    #[asset(path = "ost/SFX/7 Mort.ogg")]
+    #[asset(path = "ost/SFX/death.ogg")]
     pub death: Handle<AudioSource>,
-    #[asset(path = "ost/SFX/8.1 Effet déclenché.ogg")]
+    #[asset(path = "ost/SFX/effect_1.ogg")]
     pub ability_triggered: Handle<AudioSource>,
-    #[asset(path = "ost/SFX/9 Level up shop.ogg")]
+    #[asset(path = "ost/SFX/level_up.ogg")]
     pub level_up: Handle<AudioSource>,
 }
 

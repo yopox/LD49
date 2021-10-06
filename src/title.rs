@@ -66,7 +66,7 @@ fn display_title(
                                      ..Default::default()
                                  }),
         transform: Transform {
-            translation: Vec3::new(WIDTH / 2., HEIGHT / 2. + 124., 1.),
+            translation: Vec3::new(WIDTH / 2., HEIGHT / 2. + 120., 1.),
             ..Default::default()
         },
         ..Default::default()

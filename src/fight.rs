@@ -13,7 +13,7 @@ use crate::font::TextStyles;
 use crate::game_over::Won;
 use crate::loading::{AudioAssets, TextureAssets};
 use crate::ui::{easing, StateBackground, TranslationAnimation};
-use crate::util::{card_transform, cleanup_system, Coins, Corners, Level, PlayerHP, relu, text_bundle_at_corner, Z_ABILITY, Z_BACKGROUND, Z_CARD, Z_CARD_DRAG};
+use crate::util::{ANIM_DURATION, card_transform, cleanup_system, Coins, Corners, Level, PlayerHP, relu, text_bundle_at_corner, Z_ABILITY, Z_BACKGROUND, Z_CARD, Z_CARD_DRAG};
 
 pub struct FightPlugin;
 
@@ -460,7 +460,7 @@ fn translation_animation_producer(
     for Translation { from, to } in er.iter() {
         for (e, mut slot) in query.iter() {
             if slot == from {
-                let duration = 1.3;
+                let duration = ANIM_DURATION;
                 let t0 = time.seconds_since_startup();
                 commands.entity(e)
                     .remove::<FightSlot>()
@@ -572,11 +572,11 @@ fn remove_card_producer(
                 slot.who = start.who;
                 slot.index = start.index - removed_before as u8;
                 commands.entity(e)
-                    .insert(translate_slots(t0, start, *slot, 1.3));
+                    .insert(translate_slots(t0, start, *slot, ANIM_DURATION));
             }
         }
     }
-    let wait_duration = if translated { 1.3 } else { 0.5 };
+    let wait_duration = if translated { ANIM_DURATION } else { 0.3 };
     commands.spawn().insert(WaitUntil(t0 + wait_duration));
 }
 
