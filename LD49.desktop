@@ -1,0 +1,10 @@
+[Desktop Entry]
+Version=0.1
+Name=Unbalanced brawl
+Comment=An indie game
+Exec=/usr/lib/LD49/LD49
+Path=/usr/lib/LD49
+Icon=/usr/lib/LD49/assets/DEAD.png
+Terminal=false
+Type=Application
+Categories=Games;

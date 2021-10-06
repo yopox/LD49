@@ -13,3 +13,13 @@ derive_more = "0.99.16"
 ezing = "0.2.1"
 bevy_asset_loader = "0.6.0"
 bevy_kira_audio = "0.6.0"
+
+[package.metadata.deb]
+section = "Games"
+assets = [
+    ["target/release/LD49", "/usr/lib/LD49/", "755"],
+    ["assets/*", "/usr/lib/LD49/assets", "644"],
+    ["assets/ost/*", "/usr/lib/LD49/assets/ost", "644"],
+    ["assets/ost/SFX/*", "/usr/lib/LD49/assets/ost/SFX", "644"],
+    ["LD49.desktop", "/usr/share/applications/", "644"],
+]
