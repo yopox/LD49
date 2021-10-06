@@ -125,11 +125,13 @@ fn simulate_attack<T: Rng>(att_card_index: usize, att_hb: &mut PlayerData, def_h
     if att_card_trigger == Triggers::Hit
         || (att_card_trigger == Triggers::Kill && def_card.hp <= 0)
         || (att_card_trigger == Triggers::Survived && att_card.hp > 0)
+        || (att_card_trigger == Triggers::Death && att_card.hp <= 0)
     {
         events.append(&mut apply_effect(att_card_index, def_card_index, att_hb, def_hb, rng));
     }
     if def_card_trigger == Triggers::Hit
         || (def_card_trigger == Triggers::Kill && att_card.hp <= 0)
+        || (def_card_trigger == Triggers::Death && def_card.hp <= 0)
     {
         events.append(&mut apply_effect(def_card_index, att_card_index, def_hb, att_hb, rng));
     }
