@@ -104,7 +104,6 @@ fn min2<T: PartialOrd>(x: T, y: T) -> T { if x < y { x } else { y } }
 
 fn simulate_attack<T: Rng>(att_card_index: usize, att_hb: &mut PlayerData, def_hb: &mut PlayerData, rng: &mut T) -> (Vec<CombatEvents>, bool) {
     let def_card_index = rng.gen_range(0..get_number_of_cards(def_hb));
-    println!("Simulating attack of {}.({}/{}) on {}.({}/{})", att_hb.id, att_card_index, att_hb.board.len(), def_hb.id, def_card_index, def_hb.board.len());
     let mut events = Vec::with_capacity(2);
 
     let att_card = att_hb.board[att_card_index];
