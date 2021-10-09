@@ -1,14 +1,12 @@
 use bevy::prelude::*;
-use bevy_kira_audio::{Audio, AudioChannel, AudioPlugin};
-use rand::prelude::StdRng;
-use rand::{Rng, SeedableRng};
+use bevy_kira_audio::{Audio, AudioChannel};
+use rand::Rng;
 use rand::distributions::Standard;
 
 use crate::{AppState, GlobalData, HEIGHT, MySelf, PlayerData, WIDTH};
-use crate::card::{BaseCards, Card};
-use crate::fight::MyFoe;
-use crate::font::TextStyles;
-use crate::loading::{AudioAssets, TextureAssets};
+use crate::fight::fight_screen::MyFoe;
+use crate::data::font::TextStyles;
+use crate::data::loading::{AudioAssets, TextureAssets};
 use crate::ui::StateBackground;
 use crate::util::{Z_BACKGROUND, cleanup_system};
 

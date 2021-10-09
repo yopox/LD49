@@ -1,60 +1,59 @@
-use rand::distributions::{Distribution, Standard};
 use rand::Rng;
 use rand::rngs::StdRng;
-use crate::card::{BaseCards, Card};
+use crate::data::card::BaseCards;
 
 pub struct ShopManager;
 
 impl ShopManager {
     fn draw_level1(rng: &mut StdRng) -> BaseCards {
         match rng.gen_range(0..8) {
-            0 => BaseCards::MERCH_1,
-            1 => BaseCards::MERCH_2,
-            2 => BaseCards::MUSH_1,
-            3 => BaseCards::MUSH_2,
-            4 => BaseCards::ROB_1,
-            5 => BaseCards::ROB_2,
-            6 => BaseCards::SPID_1,
-            _ => BaseCards::SPID_2,
+            0 => BaseCards::Merch1,
+            1 => BaseCards::Merch2,
+            2 => BaseCards::Mush1,
+            3 => BaseCards::Mush2,
+            4 => BaseCards::Rob1,
+            5 => BaseCards::Rob2,
+            6 => BaseCards::Spid1,
+            _ => BaseCards::Spid2,
         }
     }
 
     fn draw_level2(rng: &mut StdRng) -> BaseCards {
         match rng.gen_range(0..8) {
-            0 => BaseCards::MERCH_3,
-            1 => BaseCards::MERCH_4,
-            2 => BaseCards::MUSH_3,
-            3 => BaseCards::MUSH_4,
-            4 => BaseCards::ROB_3,
-            5 => BaseCards::ROB_4,
-            6 => BaseCards::SPID_3,
-            _ => BaseCards::SPID_4,
+            0 => BaseCards::Merch3,
+            1 => BaseCards::Merch4,
+            2 => BaseCards::Mush3,
+            3 => BaseCards::Mush4,
+            4 => BaseCards::Rob3,
+            5 => BaseCards::Rob4,
+            6 => BaseCards::Spid3,
+            _ => BaseCards::Spid4,
         }
     }
 
     fn draw_level3(rng: &mut StdRng) -> BaseCards {
         match rng.gen_range(0..8) {
-            0 => BaseCards::MERCH_5,
-            1 => BaseCards::MERCH_6,
-            2 => BaseCards::MUSH_5,
-            3 => BaseCards::MUSH_6,
-            4 => BaseCards::ROB_5,
-            5 => BaseCards::ROB_6,
-            6 => BaseCards::SPID_5,
-            _ => BaseCards::SPID_6,
+            0 => BaseCards::Merch5,
+            1 => BaseCards::Merch6,
+            2 => BaseCards::Mush5,
+            3 => BaseCards::Mush6,
+            4 => BaseCards::Rob5,
+            5 => BaseCards::Rob6,
+            6 => BaseCards::Spid5,
+            _ => BaseCards::Spid6,
         }
     }
 
     fn draw_level4(rng: &mut StdRng) -> BaseCards {
         match rng.gen_range(0..8) {
-            0 => BaseCards::MERCH_7,
-            1 => BaseCards::MERCH_8,
-            2 => BaseCards::MUSH_7,
-            3 => BaseCards::MUSH_8,
-            4 => BaseCards::ROB_7,
-            5 => BaseCards::ROB_8,
-            6 => BaseCards::SPID_7,
-            _ => BaseCards::SPID_8,
+            0 => BaseCards::Merch7,
+            1 => BaseCards::Merch8,
+            2 => BaseCards::Mush7,
+            3 => BaseCards::Mush8,
+            4 => BaseCards::Rob7,
+            5 => BaseCards::Rob8,
+            6 => BaseCards::Spid7,
+            _ => BaseCards::Spid8,
         }
     }
 

@@ -1,7 +1,7 @@
 use rand::distributions::{Distribution, Standard};
 use rand::Rng;
 use rand::rngs::StdRng;
-use crate::shop::ShopValues;
+use crate::shop::shop_screen::ShopValues;
 
 #[derive(PartialEq)]
 pub enum ShopRules {

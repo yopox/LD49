@@ -1,10 +1,8 @@
-use bevy::app::{AppBuilder, Plugin};
-use bevy::ecs::system::Res;
+use bevy::asset::Handle;
 use bevy::prelude::*;
-use bevy::sprite::ColorMaterial;
+use bevy::prelude::ColorMaterial;
 use bevy_asset_loader::{AssetCollection};
 use bevy_kira_audio::AudioSource;
-use crate::AppState;
 
 #[derive(AssetCollection)]
 pub struct TextureAssets {

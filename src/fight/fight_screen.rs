@@ -1,19 +1,21 @@
-use std::cmp::{max, min};
+use std::cmp::max;
 
 use bevy::math::vec3;
 use bevy::prelude::*;
-use bevy_kira_audio::{Audio, AudioChannel, AudioPlugin};
+use bevy_kira_audio::{Audio, AudioChannel};
 use derive_more::Display;
 use rand::Rng;
 
 use crate::{AppState, GlobalData, HEIGHT, MySelf, PlayerData, WIDTH};
-use crate::abs::{CombatEvents, simulate_combat};
-use crate::card::{Abilities, Card, CARD_HEIGHT, CARD_SCALE, CARD_WIDTH, NewCard, StatsChanged};
-use crate::font::TextStyles;
+use crate::fight::abs::{CombatEvents, simulate_combat};
+use crate::data::card::{Abilities, Card, CARD_HEIGHT, CARD_SCALE, CARD_WIDTH};
+use crate::data::font::TextStyles;
+use crate::data::loading::{AudioAssets, TextureAssets};
 use crate::game_over::Won;
-use crate::loading::{AudioAssets, TextureAssets};
-use crate::ui::{easing, StateBackground, TranslationAnimation};
-use crate::util::{ANIM_DURATION, card_transform, cleanup_system, Coins, Corners, Level, PlayerHP, relu, text_bundle_at_corner, Z_ABILITY, Z_BACKGROUND, Z_CARD, Z_CARD_DRAG};
+use crate::ui::StateBackground;
+use crate::ui::transition::{easing, TranslationAnimation};
+use crate::ui::card_overlay::{NewCard, StatsChanged};
+use crate::util::{ANIM_DURATION, card_transform, cleanup_system, Corners, Level, relu, text_bundle_at_corner, Z_ABILITY, Z_BACKGROUND, Z_CARD, Z_CARD_DRAG};
 
 pub struct FightPlugin;
 
@@ -147,11 +149,11 @@ fn setup_fight(
     audio.stop();
     audio.play_looped_with_intro(songs.intro.clone(), songs.fight.clone());
 
-    let (e_myself, myself) = queries.q0().single().expect("There should be only one player tagged MySelf");
+    let (_e_myself, myself) = queries.q0().single().expect("There should be only one player tagged MySelf");
     let mut myself_cloned = myself.clone();
     let myself_cloned_again = myself.clone();
 
-    let (e_my_foe, my_foe) = queries.q1().single().expect("There should be only one player tagged MyFoe");
+    let (_e_my_foe, my_foe) = queries.q1().single().expect("There should be only one player tagged MyFoe");
     let mut my_foe_cloned = my_foe.clone();
     let my_foe_cloned_again = my_foe.clone();
 
@@ -190,13 +192,13 @@ fn setup_fight(
                 // Translation to fight
                 stack.push(FightEvents::Translation(Translation { from: att_post, to: att_base }));
             }
-            CombatEvents::Death { player_id, card_id } => {
+            CombatEvents::Death { player_id: _, card_id } => {
                 stack.push(FightEvents::RemoveCard(RemoveCard(card_id)));
             }
-            CombatEvents::StatsChange { player_id, card_id, hp, at } => {
+            CombatEvents::StatsChange { player_id: _, card_id, hp, at } => {
                 stack.push(FightEvents::StatsChange(StatsChange { card_id, at, hp }));
             }
-            CombatEvents::ApplyAbility { card_index, player_id, ability, card_id } => {
+            CombatEvents::ApplyAbility { card_index: _, player_id, ability, card_id } => {
                 stack.push(FightEvents::ApplyEffect(ApplyEffect(card_id)));
 
                 match ability {
@@ -333,21 +335,21 @@ fn to_fighting_height(p: FightPlayers) -> FightSlotHeight {
     }
 }
 
-fn to_owner(s: FightSlotHeight) -> FightPlayers {
-    match s {
-        FightSlotHeight::MySelf => FightPlayers::MySelf,
-        FightSlotHeight::MyFoe => FightPlayers::MyFoe,
-        FightSlotHeight::FightingMySelf => FightPlayers::MyFoe,
-        FightSlotHeight::FightingMyFoe => FightPlayers::MySelf,
-    }
-}
-
-fn other_player(p: FightPlayers) -> FightPlayers {
-    match p {
-        FightPlayers::MySelf => FightPlayers::MyFoe,
-        FightPlayers::MyFoe => FightPlayers::MySelf,
-    }
-}
+// fn to_owner(s: FightSlotHeight) -> FightPlayers {
+//     match s {
+//         FightSlotHeight::MySelf => FightPlayers::MySelf,
+//         FightSlotHeight::MyFoe => FightPlayers::MyFoe,
+//         FightSlotHeight::FightingMySelf => FightPlayers::MyFoe,
+//         FightSlotHeight::FightingMyFoe => FightPlayers::MySelf,
+//     }
+// }
+//
+// fn other_player(p: FightPlayers) -> FightPlayers {
+//     match p {
+//         FightPlayers::MySelf => FightPlayers::MyFoe,
+//         FightPlayers::MyFoe => FightPlayers::MySelf,
+//     }
+// }
 
 struct Translation {
     from: FightSlot,
@@ -458,7 +460,7 @@ fn translation_animation_producer(
     time: Res<Time>,
 ) {
     for Translation { from, to } in er.iter() {
-        for (e, mut slot) in query.iter() {
+        for (e, slot) in query.iter() {
             if slot == from {
                 let duration = ANIM_DURATION;
                 let t0 = time.seconds_since_startup();
@@ -528,7 +530,7 @@ fn remove_card_producer(
     let mut my_to_push = 0usize;
     let mut foe_to_push = 0usize;
     let mut used = vec![];
-    for (e, mut slot, &card) in query.iter_mut() {
+    for (e, slot, &card) in query.iter_mut() {
         if removed_ids.contains(&card.id) {
             audio.play_in_channel(music.death.clone(), &AudioChannel::new("SFX".to_owned()));
             commands.entity(e)

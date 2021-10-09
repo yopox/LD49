@@ -1,10 +1,7 @@
-use std::cmp::{max, min};
 use std::fmt::{Display, Formatter};
+use rand::Rng;
 
-use derive_more::{Add, Display, From, Into, Sub};
-use rand::{Rng, thread_rng};
-
-use crate::card::{Abilities, Card, Triggers};
+use crate::data::card::{Abilities, Triggers};
 use crate::PlayerData;
 
 /* Notations:
@@ -33,7 +30,7 @@ impl Display for CombatEvents {
             CombatEvents::Attack { att_id, att_card_index: att_card_id, def_card_index: def_card_id } => { write!(f, "Attack of {}.{} on {}.{}", att_id, att_card_id, 1 - att_id, def_card_id) }
             CombatEvents::Death { player_id, card_id } => { write!(f, "Death of {}.{}", player_id, card_id) }
             CombatEvents::StatsChange { .. } => { write!(f, "Stats Change") }
-            CombatEvents::ApplyAbility { card_index, player_id, ability, card_id } => { write!(f, "Effect {} of card {}.{}", ability, player_id, card_index) }
+            CombatEvents::ApplyAbility { card_index, player_id, ability, card_id: _ } => { write!(f, "Effect {} of card {}.{}", ability, player_id, card_index) }
             CombatEvents::PlayersAttack { att_id, change_def_hp } => { write!(f, "Player {} takes {} to their opponent", att_id, change_def_hp) }
             CombatEvents::EndOfAttack { .. } => { write!(f, "End of attack") }
         }

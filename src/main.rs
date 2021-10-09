@@ -1,34 +1,30 @@
 use bevy::prelude::*;
 use bevy_asset_loader::AssetLoader;
-use bevy_kira_audio::{AudioChannel, Audio, AudioPlugin, AudioSource};
-use rand::{Rng, SeedableRng};
+use bevy_kira_audio::AudioPlugin;
+use rand::SeedableRng;
 use rand::rngs::StdRng;
 
 #[cfg(target_arch = "wasm32")]
 use bevy_webgl2;
 
-use crate::card::{Card, CardPlugin, BaseCards};
-use crate::fight::{FightPlugin, MyFoe};
+use crate::data::card::Card;
+use crate::fight::fight_screen::FightPlugin;
 use crate::game_over::GameOverPlugin;
-use crate::loading::{AudioAssets, ColorAssets, TextureAssets};
-use crate::predefined_hands::HandsName;
-use crate::shop::ShopPlugin;
+use crate::data::loading::{AudioAssets, ColorAssets, TextureAssets};
+use crate::fight::predefined_hands::HandsName;
+use crate::shop::shop_screen::ShopPlugin;
 use crate::title::TitlePlugin;
-use crate::ui::{AnimationPlugin, DragAndDropPlugin};
+use crate::ui::card_overlay::CardPlugin;
+use crate::ui::drag_and_drop::DragAndDropPlugin;
+use crate::ui::transition::AnimationPlugin;
 
-mod shop;
-mod abs;
-mod font;
-mod card;
 mod util;
 mod title;
-mod ui;
-mod fight;
-mod loading;
-mod shop_rules;
-mod shop_manager;
 mod game_over;
-mod predefined_hands;
+mod data;
+mod fight;
+mod shop;
+mod ui;
 
 pub const WIDTH: f32 = 1280.;
 pub const HEIGHT: f32 = 720.;
@@ -75,7 +71,7 @@ fn main() {
         .add_plugin(TitlePlugin)
         .add_plugin(GameOverPlugin)
         .add_startup_system(setup.system())
-        .add_startup_system(crate::font::load_fonts.system())
+        .add_startup_system(crate::data::font::load_fonts.system())
         .run();
 }
 

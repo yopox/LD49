@@ -1,12 +1,12 @@
 use bevy::prelude::*;
-use bevy_kira_audio::{Audio, AudioChannel, AudioPlugin};
+use bevy_kira_audio::Audio;
 
 use crate::{AppState, HEIGHT, PlayerData, WIDTH, MySelf};
-use crate::card::NewCard;
-use crate::fight::FightBackup;
-use crate::font::TextStyles;
-use crate::loading::{AudioAssets, TextureAssets};
+use crate::fight::fight_screen::FightBackup;
+use crate::data::font::TextStyles;
+use crate::data::loading::{AudioAssets, TextureAssets};
 use crate::ui::StateBackground;
+use crate::ui::card_overlay::NewCard;
 use crate::util::{Z_BACKGROUND, cleanup_system, Slot, card_transform};
 
 #[derive(PartialEq, Copy, Clone)]
@@ -56,10 +56,6 @@ fn init(
     handles: Res<TextureAssets>,
     audio: Res<Audio>,
     songs: Res<AudioAssets>,
-    players: QuerySet<(
-        Query<&PlayerData, With<MySelf>>,
-        Query<&PlayerData, (Without<MySelf>, Without<FightBackup>)>,
-    )>,
 ) {
     audio.stop();
     audio.play_looped(songs.title.clone());
@@ -103,7 +99,7 @@ fn init(
 
     let player_data = player_data.single_mut().unwrap();
     let mut nb_cards = 0;
-    for (_) in player_data.board.iter() { nb_cards += 1; }
+    for _ in player_data.board.iter() { nb_cards += 1; }
     
     for (i, card) in player_data.board.iter().enumerate() {
         let slot = GameOverSlot { id: i as u8, total: nb_cards };
